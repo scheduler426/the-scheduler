@@ -8,6 +8,7 @@ from scheduler.repositories.vote_repository import VoteRepository
 
 
 class VotingService:
+    """Casts a vote and lists members who have not voted. It does not report poll status."""
     def __init__(self, voteRepo: VoteRepository, pollRepo: MeetingPollRepository, rosterRepo: GroupRosterRepository):
         self._voteRepo = voteRepo
         self._pollRepo = pollRepo

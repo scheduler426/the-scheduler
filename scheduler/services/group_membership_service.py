@@ -1,3 +1,11 @@
+"""Invites someone to a group and changes the roster.
+
+GroupInvitationRepository stores the invite. GroupRosterRepository adds or
+removes the member. inviteUser saves a pending invite that expires in seven
+days. The invite is saved, and no mail is sent. processInviteLink accepts
+a token that is still pending and unexpired.
+"""
+
 from __future__ import annotations
 
 import secrets
@@ -9,6 +17,13 @@ from scheduler.repositories.group_roster_repository import GroupRosterRepository
 
 
 class GroupMembershipService:
+    """Invite, accept, leave, and remove, using the roster and invitation repositories.
+
+    The inviter must already be a member. Accepting adds the given user id
+    to the roster and marks the invite accepted. This service does not check
+    that the user's email is the invited address, and it does not build or
+    send an email.
+    """
     def __init__(
         self,
         rosterRepo: GroupRosterRepository,
@@ -20,6 +35,7 @@ class GroupMembershipService:
         self._inviteValidity = inviteValidity
 
     def inviteUser(self, groupId: int, email: str, inviterUserId: int) -> Invitation:
+        """Save a pending invite that lasts seven days and return it. No message is sent."""
         if not self._isMember(groupId, inviterUserId):
             raise PermissionError("Only group members can send invitations")
         invitation = Invitation(
@@ -34,6 +50,7 @@ class GroupMembershipService:
         return invitation
 
     def processInviteLink(self, token: str, userId: int) -> None:
+        """Add userId to the group and mark the invite accepted when it is still pending."""
         invitation = self._inviteRepo.findByToken(token)
         if invitation is None:
             raise LookupError("Invitation not found")
@@ -54,6 +71,7 @@ class GroupMembershipService:
         )
 
     def removeMemberFromRoster(self, groupId: int, targetUserId: int) -> None:
+        """Drop targetUserId from the roster. There is no separate owner check."""
         if not self._isMember(groupId, targetUserId):
             raise LookupError("User is not a member of this group")
         self._rosterRepo.remove(groupId, targetUserId)

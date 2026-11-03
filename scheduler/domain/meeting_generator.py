@@ -1,3 +1,11 @@
+"""Finds meeting times that members' availability can cover.
+
+MeetingSuggestionService supplies constraints and the group's schedules,
+then saves the MeetingPoll this generator builds. The generator does not
+read DuckDB. It asks TimeSlot.covers and TimeSlot.overlaps rather than
+reimplementing them. With no close time, the poll closes in two days.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
@@ -9,6 +17,12 @@ from scheduler.domain.time_slot import TimeSlot
 
 
 class MeetingGenerator:
+    """Turns a search window into a few non-overlapping suggestions.
+
+    A candidate counts when at least one schedule has a slot that covers it.
+    Higher coverage comes first. A candidate that overlaps a slot already
+    chosen is dropped. createMeetingPoll numbers the remaining slots from 1.
+    """
     DEFAULT_POLL_DURATION = timedelta(days=2)
 
     def __init__(self):
@@ -16,6 +30,7 @@ class MeetingGenerator:
         self._constraints: Optional[dict] = None
 
     def resetMeetingSuggestions(self) -> None:
+        """Drop suggestions held on this generator. A saved poll is left as it is."""
         self._suggestedMeetings = []
 
     def setMeetingConstraints(
@@ -27,6 +42,7 @@ class MeetingGenerator:
         maxSuggestions: int = 5,
         pollClosesAt: Optional[datetime] = None,
     ) -> None:
+        """Remember the window, length, step, suggestion cap, and optional close time."""
         if windowEnd <= windowStart:
             raise ValueError("windowEnd must be after windowStart")
         if durationMinutes <= 0 or stepMinutes <= 0 or maxSuggestions <= 0:
@@ -41,6 +57,7 @@ class MeetingGenerator:
         }
 
     def generateMeetingSuggestions(self, availabilitySchedules: Iterable[AvailabilitySchedule]) -> list[TimeSlot]:
+        """Return the chosen slots, best coverage first, and remember them on this generator."""
         if self._constraints is None:
             raise ValueError("Meeting constraints must be set before generating suggestions")
         schedules = list(availabilitySchedules)
@@ -60,6 +77,7 @@ class MeetingGenerator:
         return list(chosen)
 
     def createMeetingPoll(self, slots: Iterable[TimeSlot], groupId: int) -> MeetingPoll:
+        """Build an active poll for groupId. It closes in two days when no close time was set."""
         closesAt = self._constraints["pollClosesAt"] if self._constraints else None
         suggestions = {suggestionId: slot for suggestionId, slot in enumerate(slots, start=1)}
         return MeetingPoll(None, groupId, closesAt or datetime.now() + self.DEFAULT_POLL_DURATION, True, suggestions)

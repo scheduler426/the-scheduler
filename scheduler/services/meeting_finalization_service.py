@@ -7,6 +7,7 @@ from scheduler.repositories.scheduled_meeting_repository import ScheduledMeeting
 
 
 class MeetingFinalizationService:
+    """Saves one chosen slot as a meeting, closes the poll, and does not notify anyone."""
     def __init__(self, meetingRepo: ScheduledMeetingRepository, pollRepo: MeetingPollRepository):
         self._meetingRepo = meetingRepo
         self._pollRepo = pollRepo

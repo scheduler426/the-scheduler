@@ -1,3 +1,10 @@
+"""Reads and writes groups. Delete also removes rows that belong to the group.
+
+GroupService calls these methods. delete clears votes, poll suggestions,
+polls, meeting slots, meetings, invitations, and the roster before the
+group row. This class does not check who requested the delete.
+"""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -7,6 +14,11 @@ from scheduler.infrastructure.duckdb_connection import DuckDBConnection
 
 
 class GroupRepository:
+    """DuckDB access for the groups table through DuckDBConnection.
+
+    findAllByUserId returns groups whose roster includes that user.
+    save inserts a group with no members; GroupRosterRepository adds them.
+    """
     def __init__(self, db: DuckDBConnection):
         self._db = db
 
@@ -15,6 +27,7 @@ class GroupRepository:
         return Group(row[0], row[1], row[2] or "") if row else None
 
     def findAllByUserId(self, userId: int) -> list[Group]:
+        """Return the groups this user belongs to, ordered by name."""
         rows = self._db.sql(
             "SELECT g.groupId, g.groupName, g.description FROM groups g "
             "JOIN groupRoster r ON r.groupId = g.groupId WHERE r.userId = ? ORDER BY g.groupName",
@@ -23,6 +36,7 @@ class GroupRepository:
         return [Group(row[0], row[1], row[2] or "") for row in rows]
 
     def save(self, group: Group) -> int:
+        """Insert or update the group and return its id."""
         if group.groupId is None:
             return self._db.sql(
                 "INSERT INTO groups (groupName, description) VALUES (?, ?) RETURNING groupId",
@@ -35,6 +49,7 @@ class GroupRepository:
         return group.groupId
 
     def delete(self, id: int) -> None:
+        """Delete the group and its polls, votes, meetings, invitations, and roster."""
         pollIds = "SELECT pollId FROM meetingPolls WHERE groupId = ?"
         meetingIds = "SELECT meetingId FROM scheduledMeetings WHERE groupId = ?"
         self._db.sql(f"DELETE FROM votes WHERE pollId IN ({pollIds})", [id])

@@ -1,3 +1,11 @@
+"""Shared DuckDB connection and the tables the repositories use.
+
+Every repository calls sql on this object instead of opening its own
+database. Construction creates the sequences and tables for users, groups,
+rosters, invitations, availability, polls, votes, and meetings. There are
+no tables for group files, conflict reports, or outbound mail.
+"""
+
 from __future__ import annotations
 
 from typing import Any, Optional, Sequence
@@ -6,6 +14,11 @@ import duckdb
 
 
 class DuckDBConnection:
+    """One DuckDB database, in memory unless connectionPath is a file.
+
+    cursor and sql are the operations repositories need. Who may vote, and
+    which poll is closed, is decided by domain objects and services.
+    """
     _SCHEMA = (
         "CREATE SEQUENCE IF NOT EXISTS userIdSeq START 1",
         "CREATE SEQUENCE IF NOT EXISTS groupIdSeq START 1",
@@ -109,6 +122,7 @@ class DuckDBConnection:
         return self._connection.cursor()
 
     def sql(self, query: str, params: Optional[Sequence[Any]] = None) -> duckdb.DuckDBPyConnection:
+        """Run query with params and return the DuckDB result."""
         return self._connection.execute(query, list(params or []))
 
     def _initializeSchema(self) -> None:

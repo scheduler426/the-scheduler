@@ -1,3 +1,11 @@
+"""Reads and writes meetings and the slots attached to them.
+
+findAllByUserId returns meetings in groups the user belongs to.
+MeetingFinalizationService saves a new meeting after a poll is confirmed.
+save replaces that meeting's slots. This class does not close a poll,
+notify members, or export a calendar file.
+"""
+
 from __future__ import annotations
 
 from typing import Sequence
@@ -8,10 +16,12 @@ from scheduler.infrastructure.duckdb_connection import DuckDBConnection
 
 
 class ScheduledMeetingRepository:
+    """DuckDB access for scheduledMeetings and meetingSlots through DuckDBConnection."""
     def __init__(self, db: DuckDBConnection):
         self._db = db
 
     def findAllByUserId(self, userId: int) -> list[ScheduledMeeting]:
+        """Return meetings for every group the user is still on."""
         rows = self._db.sql(
             "SELECT m.meetingId, m.groupId, m.meetingName, m.status FROM scheduledMeetings m "
             "JOIN groupRoster r ON r.groupId = m.groupId WHERE r.userId = ? ORDER BY m.meetingId",
@@ -20,6 +30,7 @@ class ScheduledMeetingRepository:
         return [self._meetingFromRow(row) for row in rows]
 
     def save(self, meeting: ScheduledMeeting) -> int:
+        """Insert or update the meeting, replace its slots, and return the meeting id."""
         meetingId = meeting.meetingId
         if meetingId is None:
             meetingId = self._db.sql(

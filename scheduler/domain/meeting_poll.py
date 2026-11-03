@@ -1,3 +1,11 @@
+"""Suggested meeting times for a group, plus the votes cast so far.
+
+MeetingGenerator creates a poll. DuckDBMeetingPollRepository loads its
+suggestions and votes, and the constructor tallies those votes.
+alreadyVoted holds user ids, not User objects. Choosing a winner and
+closing the poll happen in other types.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -8,6 +16,11 @@ from scheduler.domain.vote import Vote
 
 
 class MeetingPoll:
+    """Suggestions keyed by id, a close time, and a tally of the votes it holds.
+
+    tallyVotes scores each suggestion with Vote weights: yes is 1, maybe is
+    0.5, and no is 0. The active flag is whatever the caller passed in.
+    """
     def __init__(
         self,
         pollId: Optional[int],
@@ -49,13 +62,16 @@ class MeetingPoll:
 
     @property
     def voteTally(self) -> dict[int, float]:
+        """Suggestion id to total weight."""
         return dict(self._voteTally)
 
     @property
     def alreadyVoted(self) -> list[int]:
+        """User ids that have a vote, in the order those votes were given."""
         return list(self._alreadyVoted)
 
     def tallyVotes(self) -> None:
+        """Rebuild voteTally and alreadyVoted from the votes held on this poll."""
         tally = {suggestionId: 0.0 for suggestionId in self._suggestions}
         for vote in self._votes:
             if vote.suggestionId in tally:

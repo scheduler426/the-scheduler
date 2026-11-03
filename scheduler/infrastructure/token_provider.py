@@ -1,3 +1,10 @@
+"""Signs a payload into a token and later checks that token.
+
+SessionManager uses generateToken, validateToken, and getPayload for login
+tokens. The payload is an opaque string, usually a user id. Expired or
+altered tokens fail the check. Nothing here stores a token or sends email.
+"""
+
 from __future__ import annotations
 
 import base64
@@ -9,6 +16,12 @@ from typing import Optional
 
 
 class TokenProvider:
+    """HMAC-SHA256 token with an expiry claim, defaulting to one hour.
+
+    generateToken attaches the expiry. validateToken is true only when the
+    signature matches and the expiry is still ahead. getPayload returns the
+    original string after those same checks.
+    """
     def __init__(self, secretKey: str, tokenValidityInMs: int = 3_600_000):
         if not secretKey:
             raise ValueError("secretKey is required")
@@ -16,14 +29,17 @@ class TokenProvider:
         self._tokenValidityInMs = tokenValidityInMs
 
     def generateToken(self, payload: str) -> str:
+        """Sign payload so it expires after tokenValidityInMs."""
         claims = {"payload": payload, "exp": self._nowMs() + self._tokenValidityInMs}
         body = self._encode(json.dumps(claims, separators=(",", ":")).encode("utf-8"))
         return f"{body}.{self._sign(body)}"
 
     def validateToken(self, token: str) -> bool:
+        """True when the signature matches and the token is unexpired."""
         return self._claimsOf(token) is not None
 
     def getPayload(self, token: str) -> str:
+        """Return the signed payload. Raises when the token is invalid or expired."""
         claims = self._claimsOf(token)
         if claims is None:
             raise ValueError("Invalid or expired token")

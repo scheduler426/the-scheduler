@@ -1,9 +1,22 @@
+"""One time interval, either a single occurrence or a daily or weekly pattern.
+
+MeetingGenerator asks TimeSlot whether a candidate fits someone's free time.
+overlaps, covers, and occursAt answer that. A slot does not know which user
+or meeting it belongs to.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta
 
 
 class TimeSlot:
+    """A start, an end, and a cadence of once, daily, or weekly.
+
+    A recurring slot must be shorter than one period. Repeats are counted
+    from this slot's own start. Callers store the slot; this class only
+    compares times.
+    """
     ONCE = "once"
     DAILY = "daily"
     WEEKLY = "weekly"
@@ -26,9 +39,11 @@ class TimeSlot:
         return self._cadence
 
     def getDuration(self) -> int:
+        """Return the length of one occurrence in seconds."""
         return int((self.endTime - self.startTime).total_seconds())
 
     def overlaps(self, other: TimeSlot) -> bool:
+        """True when this slot and other share any time, including later repeats."""
         if self._isRecurring() and other._isRecurring():
             return self._patternsOverlap(other)
         if self._isRecurring():
@@ -39,12 +54,14 @@ class TimeSlot:
         )
 
     def occursAt(self, dateTime: datetime) -> bool:
+        """True when dateTime falls inside an occurrence. The end instant is excluded."""
         return any(
             occurrence.startTime <= dateTime < occurrence.endTime
             for occurrence in self._occurrencesWithin(dateTime, dateTime)
         )
 
     def covers(self, other: TimeSlot) -> bool:
+        """True when one occurrence of this slot contains other from start to end."""
         return any(
             occurrence.startTime <= other.startTime and other.endTime <= occurrence.endTime
             for occurrence in self._occurrencesWithin(other.startTime, other.endTime)

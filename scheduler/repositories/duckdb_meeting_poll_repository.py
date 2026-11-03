@@ -1,3 +1,11 @@
+"""DuckDB storage for meeting polls and their suggestions.
+
+findById loads suggestions and votes into a MeetingPoll, which tallies them
+in its constructor. save writes the poll row and replaces its suggestions.
+Vote rows are saved by VoteRepository. delete removes votes, suggestions,
+and the poll. This class does not score a winner or close a poll by itself.
+"""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -10,6 +18,10 @@ from scheduler.repositories.meeting_poll_repository import MeetingPollRepository
 
 
 class DuckDBMeetingPollRepository(MeetingPollRepository):
+    """MeetingPollRepository backed by DuckDBConnection.
+
+    findActiveByGroupId returns the newest active poll for the group.
+    """
     def __init__(self, db: DuckDBConnection):
         self._db = db
 
@@ -42,6 +54,7 @@ class DuckDBMeetingPollRepository(MeetingPollRepository):
         )
 
     def save(self, poll: MeetingPoll) -> int:
+        """Insert or update the poll, replace its suggestions, and return the poll id."""
         pollId = poll.pollId
         if pollId is None:
             pollId = self._db.sql(
@@ -63,6 +76,7 @@ class DuckDBMeetingPollRepository(MeetingPollRepository):
         return pollId
 
     def delete(self, poll: MeetingPoll) -> None:
+        """Delete the poll's votes, suggestions, and poll row."""
         self._db.sql("DELETE FROM votes WHERE pollId = ?", [poll.pollId])
         self._db.sql("DELETE FROM pollSuggestions WHERE pollId = ?", [poll.pollId])
         self._db.sql("DELETE FROM meetingPolls WHERE pollId = ?", [poll.pollId])

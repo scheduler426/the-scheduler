@@ -8,6 +8,7 @@ from scheduler.repositories.availability_schedule_repository import Availability
 
 
 class AvailabilityService:
+    """Loads and saves manual availability, and does not import an ICS file."""
     def __init__(self, scheduleRepo: AvailabilityScheduleRepository):
         self._scheduleRepo = scheduleRepo
 
