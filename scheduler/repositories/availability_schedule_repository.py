@@ -11,12 +11,12 @@ from __future__ import annotations
 
 from scheduler.domain.availability_schedule import AvailabilitySchedule
 from scheduler.domain.time_slot import TimeSlot
-from scheduler.infrastructure.duckdb_connection import DuckDBConnection
+from scheduler.infrastructure.database import Database
 
 
 class AvailabilityScheduleRepository:
-    """DuckDB access for availabilitySlots through DuckDBConnection."""
-    def __init__(self, db: DuckDBConnection):
+    """Access to availabilitySlots through a Database."""
+    def __init__(self, db: Database):
         self._db = db
 
     def findByUserId(self, userId: int) -> AvailabilitySchedule:

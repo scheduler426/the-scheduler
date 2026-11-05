@@ -12,12 +12,12 @@ from typing import Sequence
 
 from scheduler.domain.scheduled_meeting import ScheduledMeeting
 from scheduler.domain.time_slot import TimeSlot
-from scheduler.infrastructure.duckdb_connection import DuckDBConnection
+from scheduler.infrastructure.database import Database
 
 
 class ScheduledMeetingRepository:
-    """DuckDB access for scheduledMeetings and meetingSlots through DuckDBConnection."""
-    def __init__(self, db: DuckDBConnection):
+    """Access to scheduledMeetings and meetingSlots through a Database."""
+    def __init__(self, db: Database):
         self._db = db
 
     def findAllByUserId(self, userId: int) -> list[ScheduledMeeting]:

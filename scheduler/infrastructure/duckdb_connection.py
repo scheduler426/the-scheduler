@@ -1,9 +1,10 @@
-"""Shared DuckDB connection and the tables the repositories use.
+"""DuckDB implementation of Database and the tables the repositories use.
 
-Every repository calls sql on this object instead of opening its own
-database. Construction creates the sequences and tables for users, groups,
-rosters, invitations, availability, polls, votes, and meetings. There are
-no tables for group files, conflict reports, or outbound mail.
+Repositories receive this object as a Database and call sql on it instead
+of opening their own database. Construction creates the sequences and
+tables for users, groups, rosters, invitations, availability, polls, votes,
+and meetings. There are no tables for group files, conflict reports, or
+outbound mail.
 """
 
 from __future__ import annotations
@@ -12,8 +13,10 @@ from typing import Any, Optional, Sequence
 
 import duckdb
 
+from scheduler.infrastructure.database import Database
 
-class DuckDBConnection:
+
+class DuckDBConnection(Database):
     """One DuckDB database, in memory unless connectionPath is a file.
 
     cursor and sql are the operations repositories need. Who may vote, and

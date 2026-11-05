@@ -12,18 +12,18 @@ from __future__ import annotations
 from typing import Optional
 
 from scheduler.domain.user import User
-from scheduler.infrastructure.duckdb_connection import DuckDBConnection
+from scheduler.infrastructure.database import Database
 
 
 class UserRepository:
-    """DuckDB access for the users table through DuckDBConnection.
+    """Access to the users table through a Database.
 
     save inserts when userId is missing and updates the same columns when
     it is present. This class does not hash passwords or open sessions.
     """
     _COLUMNS = "userId, email, passwordHash, firstName, lastName, allowEmailReminders"
 
-    def __init__(self, db: DuckDBConnection):
+    def __init__(self, db: Database):
         self._db = db
 
     def findByEmail(self, email: str) -> Optional[User]:

@@ -8,6 +8,7 @@ service does not register users or issue a password-reset token.
 
 from __future__ import annotations
 
+from scheduler.domain.user_session import UserSession
 from scheduler.infrastructure.password_hasher import PasswordHasher
 from scheduler.infrastructure.session_manager import SessionManager
 from scheduler.repositories.user_repository import UserRepository
@@ -16,7 +17,7 @@ from scheduler.repositories.user_repository import UserRepository
 class AuthenticationService:
     """Login, logout, and a check that a session token is still active.
 
-    login returns the session dict from SessionManager. A missing account
+    login returns the UserSession from SessionManager. A missing account
     and a wrong password raise the same error. validateToken asks
     SessionManager and does not decode the token itself.
     """
@@ -25,7 +26,7 @@ class AuthenticationService:
         self._sessionManager = sessionManager
         self._hasher = hasher
 
-    def login(self, email: str, password: str) -> dict:
+    def login(self, email: str, password: str) -> UserSession:
         """Return a new session when the email and password match."""
         user = self._userRepo.findByEmail((email or "").strip())
         if user is None or not self._hasher.verify(password, user.passwordHash):

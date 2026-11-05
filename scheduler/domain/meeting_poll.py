@@ -1,6 +1,6 @@
 """Suggested meeting times for a group, plus the votes cast so far.
 
-MeetingGenerator creates a poll. DuckDBMeetingPollRepository loads its
+MeetingGenerator creates a poll. MeetingPollRepository loads its
 suggestions and votes, and the constructor tallies those votes.
 alreadyVoted holds user ids, not User objects. Choosing a winner and
 closing the poll happen in other types.

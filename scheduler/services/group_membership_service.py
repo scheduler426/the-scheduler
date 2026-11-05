@@ -1,6 +1,6 @@
 """Invites someone to a group and changes the roster.
 
-GroupInvitationRepository stores the invite. GroupRosterRepository adds or
+GroupInvitationRepository stores the invite. GroupRepository adds or
 removes the member. inviteUser saves a pending invite that expires in seven
 days. The invite is saved, and no mail is sent. processInviteLink accepts
 a token that is still pending and unexpired.
@@ -13,11 +13,11 @@ from datetime import datetime, timedelta
 
 from scheduler.domain.invitation import Invitation
 from scheduler.repositories.group_invitation_repository import GroupInvitationRepository
-from scheduler.repositories.group_roster_repository import GroupRosterRepository
+from scheduler.repositories.group_repository import GroupRepository
 
 
 class GroupMembershipService:
-    """Invite, accept, leave, and remove, using the roster and invitation repositories.
+    """Invite, accept, leave, and remove, using the group and invitation repositories.
 
     The inviter must already be a member. Accepting adds the given user id
     to the roster and marks the invite accepted. This service does not check
@@ -26,11 +26,11 @@ class GroupMembershipService:
     """
     def __init__(
         self,
-        rosterRepo: GroupRosterRepository,
+        groupRepo: GroupRepository,
         inviteRepo: GroupInvitationRepository,
         inviteValidity: timedelta = timedelta(days=7),
     ):
-        self._rosterRepo = rosterRepo
+        self._groupRepo = groupRepo
         self._inviteRepo = inviteRepo
         self._inviteValidity = inviteValidity
 
@@ -58,7 +58,7 @@ class GroupMembershipService:
             raise ValueError(f"Invitation has already been {invitation.status}")
         if invitation.isExpired():
             raise ValueError("Invitation has expired")
-        self._rosterRepo.save(invitation.groupId, userId)
+        self._groupRepo.addMember(invitation.groupId, userId)
         self._inviteRepo.save(
             Invitation(
                 invitation.groupId,
@@ -74,10 +74,10 @@ class GroupMembershipService:
         """Drop targetUserId from the roster. There is no separate owner check."""
         if not self._isMember(groupId, targetUserId):
             raise LookupError("User is not a member of this group")
-        self._rosterRepo.remove(groupId, targetUserId)
+        self._groupRepo.removeMember(groupId, targetUserId)
 
     def leaveGroup(self, userId: int, groupId: int) -> None:
         self.removeMemberFromRoster(groupId, userId)
 
     def _isMember(self, groupId: int, userId: int) -> bool:
-        return any(member.userId == userId for member in self._rosterRepo.findByGroupId(groupId))
+        return any(member.userId == userId for member in self._groupRepo.findMembers(groupId))

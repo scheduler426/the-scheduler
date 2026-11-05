@@ -1,7 +1,7 @@
 """Reads and writes vote rows. Poll rules are applied before it is called.
 
 VotingService checks membership and calls Vote.submitVote, then save.
-clearByPollId deletes every vote for a poll. DuckDBMeetingPollRepository
+clearByPollId deletes every vote for a poll. MeetingPollRepository
 also deletes a poll's votes when the poll itself is deleted. This class
 does not tally votes or decide who has voted.
 """
@@ -11,17 +11,17 @@ from __future__ import annotations
 from typing import Optional
 
 from scheduler.domain.vote import Vote
-from scheduler.infrastructure.duckdb_connection import DuckDBConnection
+from scheduler.infrastructure.database import Database
 
 
 class VoteRepository:
-    """DuckDB access for the votes table through DuckDBConnection.
+    """Access to the votes table through a Database.
 
     findByPollAndUser returns that user's one vote for the poll. save
     inserts when voteId is missing and otherwise updates the suggestion
     and preference.
     """
-    def __init__(self, db: DuckDBConnection):
+    def __init__(self, db: Database):
         self._db = db
 
     def findByPollAndUser(self, pollId: int, userId: int) -> Optional[Vote]:
