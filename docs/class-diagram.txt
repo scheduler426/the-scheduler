@@ -1,0 +1,535 @@
+classDiagram
+
+    %% --- Core Entities & Domain Architecture ---
+    User "1" *-- "1" AvailabilitySchedule : Contains
+    User "1..*" -- "0..*" Group : Make up a
+    User "1" -- "0..1" UserSession : Accesses via
+    User "1" *-- "0..*" ExternalCalendarFile : Owns
+
+    AvailabilitySchedule "1" *-- "0..*" TimeSlot : Composed of
+    ScheduledMeeting "1" *-- "0..*" TimeSlot : Composed of
+    CalendarParser <|.. IcsParser
+
+    User "1" -- "0..*" Invitation : Receives
+    User "1" -- "0..*" Vote : Casts
+    Group "1" -- "0..*" Invitation : Tied to
+    Group "1" -- "0..*" ScheduledMeeting : Has
+    Group "1" -- "0..*" Notification : Dispatches
+    Group "1" -- "0..*" GroupFileService : manages
+    MeetingPoll "1" *-- "0..*" Vote : Aggregates
+    MeetingPoll "0..1" -- "1" TimeSlot : Proposes
+    MeetingGenerator ..> MeetingPoll
+    MeetingGenerator "1" -- "0..*" TimeSlot : Evaluated by
+    IcsParser o-- ExternalCalendarFile : Holds reference to
+
+    %% --- Structural Domain Elements ---
+    class CalendarParser {
+      <<abstract>>
+      +validateFormat(fileBytes: byte) bool
+      +parseToSlots(fileBytes: byte) List[TimeSlot]
+    }
+
+    class TimeSlot {
+      +startTime: DateTime
+      +endTime: DateTime
+      -cadence: str
+      +getDuration() long
+      +overlaps(other: TimeSlot) bool
+      +occursAt(dateTime: DateTime) bool
+    }
+
+    %% --- Domain Classes ---
+    class User {
+      -userId: int
+      -email: str
+      -passwordHash: str
+      -firstName: str
+      -lastName: str
+      -allowEmailReminders: bool
+    }
+
+    class AvailabilitySchedule {
+      -availableSlots: List[TimeSlot]
+      +retrieveAvailabilitySchedule() List[TimeSlot]
+      +updateAvailabilitySchedule() void
+      +clearAvailabilitySchedule() void
+    }
+
+    class UserSession {
+      <<dataclass>>
+      -userSessionId: str
+      -userId: int
+      -token: str
+      -loginTime: Calendar
+      -expiryTime: Calendar
+    }
+
+    class Group {
+      -groupId: int
+      -groupName: str
+      -description: str
+    }
+
+    class ScheduledMeeting {
+      -meetingId: int
+      -meetingName: str
+      -scheduledSlots: List[TimeSlot]
+      +cancelMeeting() void
+      %%+setNotification() void
+    }
+
+    class Notification {
+      -notificationId: int
+      -status: str
+      -message: str
+      +setMessage() void
+    }
+
+    class Invitation {
+      -inviterUserId: int
+      -inviteToken: str
+      -inviteeEmail: str
+      -status: str
+      -expiresAt: Calendar
+      %%+sendInviteRequest() void -should be done via emailService
+      %%+joinViaInvite() void -keep in groupMembershipService
+      %%+declineInvite() void -keep in groupMembershipService
+      +isExpired() bool
+    }
+
+    class MeetingPoll {
+      -pollId: int
+      -closesAt: Calendar
+      -isActive: bool
+      -voteTally: Dict
+      -alreadyVoted: List[User]
+      +tallyVotes() void
+    }
+
+    class Vote {
+      -voteId: int
+      -votePreference: str
+      +submitVote() void
+      +changeVote() void
+    }
+
+    class MeetingGenerator {
+      -suggestedMeetings: List[TimeSlot]
+      -constraints: Calendar
+      +resetMeetingSuggestions() void
+      +setMeetingConstraints() void
+      +generateMeetingSuggestions(availabilitySchedules: list) list[TimeSlot]
+      +createMeetingPoll(slots: list[TimeSlot]) MeetingPoll
+    }
+
+    class ExternalCalendarFile {
+      -fileName: str
+      -fileSize: long
+      -fileContent: byte
+      -uploadedAt: Calendar
+    }
+
+    %% --- Controller to Service Dependencies ---
+    UserController ..> UserService : delegates to
+    AuthController ..> AuthenticationService : coordinates access via
+    PasswordRecoveryController ..> PasswordRecoveryService : delegates to
+    GroupController ..> GroupService : delegates to
+    GroupFileController ..> GroupFileService : delegates upload/download tasks to
+    MembershipController ..> GroupMembershipService : delegates unwrapped data to
+    AvailabilityController ..> AvailabilityService : delegates to
+    SchedulingController ..> MeetingSuggestionService : delegates to
+    SchedulingController ..> MeetingFinalizationService : delegates to
+    VoteController ..> VotingService : delegates to
+    MeetingController ..> MeetingRetrievalService : delegates to
+    MeetingController ..> ConflictReportingService : delegates to
+    MeetingController ..> IcsExporter : uses
+    NotificationController ..> GroupNotificationService : delegates to
+
+    %% --- Service to Repository & Utility Dependencies ---
+    UserService ..> UserRepository : uses
+    UserService ..> UserProfileRepository : uses
+    UserService ..> PasswordHasher : uses
+
+    AuthenticationService ..> UserRepository : uses
+    AuthenticationService ..> SessionManager : delegates tracking to
+
+    PasswordRecoveryService ..> UserRepository : uses
+    PasswordRecoveryService ..> TokenProvider : uses
+    PasswordRecoveryService ..> EmailService : uses
+
+    GroupService ..> GroupRepository : uses
+    GroupService ..> GroupRosterRepository : uses
+
+    GroupMembershipService ..> GroupRosterRepository : uses interface
+    GroupMembershipService ..> GroupInvitationRepository : uses interface
+
+    GroupFileService ..> GroupFileRepository : delegates database entries to
+
+    AvailabilityService ..> AvailabilityScheduleRepository : uses
+    AvailabilityService ..> CalendarParser : uses interface
+
+    MeetingSuggestionService ..> MeetingGenerator : instantiates
+    MeetingSuggestionService ..> MeetingPollRepository : uses
+    MeetingSuggestionService ..> AvailabilityScheduleRepository : uses
+
+    VotingService ..> VoteRepository : uses
+    VotingService ..> MeetingPollRepository : depends on interface
+    MeetingPollRepository <|.. MeetingPollRepository : implements
+
+    MeetingFinalizationService ..> ScheduledMeetingRepository : uses
+    MeetingFinalizationService ..> MeetingPollRepository : uses
+    MeetingFinalizationService ..> GroupNotificationService : uses
+
+    MeetingRetrievalService ..> ScheduledMeetingRepository : uses
+
+    ConflictReportingService ..> SchedulingConflictReportRepository : uses
+    ConflictReportingService ..> EmailService : uses
+
+    GroupNotificationService ..> EmailService : uses
+    GroupNotificationService ..> GroupRosterRepository : uses
+
+    %% --- Component Utility Dependencies ---
+    SessionManager ..> TokenProvider : signs/verifies with
+    SessionManager "1" *-- "0..*" UserSession : tracks in memory or cache
+    PasswordRecoveryService ..> AuthEmailTemplateFactory : uses
+    ConflictReportingService ..> SchedulingEmailTemplateFactory : uses
+    GroupNotificationService ..> GroupEmailTemplateFactory : uses
+    GroupMembershipService ..> GroupEmailTemplateFactory : uses
+
+    %% --- DuckDB Relational API Architecture Connections ---
+    UserRepository ..> DuckDBConnection : uses
+    UserProfileRepository ..> DuckDBConnection : uses
+    GroupRepository ..> DuckDBConnection : uses
+    GroupRosterRepository ..> DuckDBConnection : uses
+    GroupFileRepository ..> DuckDBConnection : queries metadata tables via
+    GroupInvitationRepository ..> DuckDBConnection : uses
+    AvailabilityScheduleRepository ..> DuckDBConnection : uses
+    MeetingPollRepository ..> DuckDBConnection : encapsulates
+    VoteRepository ..> DuckDBConnection : uses
+    ScheduledMeetingRepository ..> DuckDBConnection : uses
+    SchedulingConflictReportRepository ..> DuckDBConnection : uses
+
+    %% --- Service Classes ---
+    class UserService {
+      -userRepo: UserRepository
+      -profileRepo: UserProfileRepository
+      -hasher: PasswordHasher
+      +registerUser(email: str, passwordHash: str, firstName: str, lastName: str) User
+      +updateProfileData(userId: int, email: str, firstName: str, lastName: str) void
+      +deleteUserAccount(userId, password) void
+    }
+
+    class AuthenticationService {
+      -userRepo: UserRepository
+      -sessionManager: SessionManager
+      +login(email, password) UserSession
+      +logout(token) void
+      +validateToken(token) bool
+    }
+
+    class PasswordRecoveryService {
+      -userRepo: UserRepository
+      -tokenProvider: TokenProvider
+      -emailService: EmailService
+      +requestResetLink(email) void
+      +completePasswordReset(token, newPassword) void
+    }
+
+    class GroupService {
+      -groupRepo: GroupRepository
+      -rosterRepo: GroupRosterRepository
+      +createGroup(userId, name, desc) Group
+      +modifyGroupDetails(groupId, name, desc) void
+      +deleteGroup(groupId) void
+      +getGroups(userId) list[Group]
+    }
+
+    class GroupFileService {
+      -fileRepo: GroupFileRepository
+      -storageDirectory: str
+      +attachFileToGroup(groupId: int, fileName: str, fileBytes: byte) int
+      +getFileStream(fileId: int) tuple[str, str]
+      +removeFileFromGroup(fileId: int) void
+    }
+
+    class GroupMembershipService {
+      -rosterRepo: GroupRosterRepository
+      -inviteRepo: GroupInvitationRepository
+      +inviteUser(groupId: int, email: str) void
+      +processInviteLink(token: str, userId: int) void
+      +removeMemberFromRoster(groupId: int, targetUserId: int) void
+      +leaveGroup(userId: int, groupId: int) void
+    }
+
+    class AvailabilityService {
+      -scheduleRepo: AvailabilityScheduleRepository
+      -parser: CalendarParser
+      +importIcsCalendar(userId: int, rawfileBytes: byte) void
+      +getUserAvailability(userId: int) AvailabilitySchedule
+      +saveManualSchedule(userId: int, slots: List[TimeSlot]) void
+    }
+
+    class MeetingSuggestionService {
+      -generator: MeetingGenerator
+      -pollRepo: MeetingPollRepository
+      -scheduleRepo: AvailabilityScheduleRepository
+      +generateSuggestions(groupId: int, constraints: Calendar) MeetingPoll
+      +resetActivePoll(groupId: int) void
+    }
+
+    class VotingService {
+      -voteRepo: VoteRepository
+      -pollRepo: MeetingPollRepository
+      +castVote(userId, pollId, suggestionId, preference) void
+      +getUnvotedMembers(groupId) List[User]
+    }
+
+    class MeetingFinalizationService {
+      -meetingRepo: ScheduledMeetingRepository
+      -pollRepo: MeetingPollRepository
+      -notifier: NotificationService
+      +confirmFinalTime(groupId: int, suggestionId: int) ScheduledMeeting
+    }
+
+    class MeetingRetrievalService {
+      -meetingRepo: ScheduledMeetingRepository
+      getUserMeetings(userId) List[ScheduledMeeting]
+      shareUserMeetings() void
+    }
+
+    class ConflictReportingService {
+      -conflictRepo: SchedulingConflictReportRepository
+      -emailService: EmailService
+      +reportConflict(userId, meetingId, reason) void
+    }
+
+    class GroupNotificationService {
+      -emailService: EmailService
+      -rosterRepo: GroupRosterRepository
+      +dispatchManualReminder(groupId, targetUserIds, message) void
+    }
+
+    %% --- DuckDB Core API Engine ---
+    class DuckDBConnection {
+      -connectionPath: str
+      +cursor() object
+      +sql(query: str) object
+    }
+
+    %% --- Repository Classes (DuckDB Relational Handlers) ---
+    class UserRepository {
+      -db: DuckDBConnection
+      +findByEmail(email: str) User
+      +save(user: User) void
+      +delete(id: int) void
+    }
+
+    class UserProfileRepository {
+      -db: DuckDBConnection
+      +findByUserId(userId: int) UserProfile
+      +save(profile: UserProfile) void
+    }
+
+    class GroupRepository {
+      -db: DuckDBConnection
+      +findById(id: int) list[User]
+      +findAllByUserId(userId: int) list[Group]
+      +save(group: Group) void
+      +delete(id: int) void
+    }
+
+    class GroupRosterRepository {
+      -db: DuckDBConnection
+      +findByGroupId(groupId: int) List[User]
+      +save(roster: GroupRoster) void
+    }
+
+    class GroupInvitationRepository {
+      -db: DuckDBConnection
+      +findByToken(token: str) GroupInvitation
+      +findAllActiveByGroup(groupId: int) List[GroupInvitation]
+      +save(invite: GroupInvitation) void
+    }
+
+    class GroupFileRepository {
+      -db: DuckDBConnection
+      +saveFileMetadata(groupId: int, fileName: str, filePath: str) int
+      +findById(fileId: int) GroupFile
+      +deleteById(fileId: int) void
+    }
+
+    class AvailabilityScheduleRepository {
+      -db: DuckDBConnection
+      +findByUserId(userId: int) AvailabilitySchedule
+      +save(schedule: AvailabilitySchedule) void
+    }
+
+    class MeetingPollRepository {
+      <<interface>>
+      +findActiveByGroupId(groupId: int) MeetingPoll
+      +save(poll: MeetingPoll) void
+      +delete(poll: MeetingPoll) void
+    }
+
+    class MeetingPollRepository {
+      -db: DuckDBConnection
+      +findActiveByGroupId(groupId: int) MeetingPoll
+      +save(poll: MeetingPoll) void
+      +delete(poll: MeetingPoll) void
+    }
+
+    class VoteRepository {
+      -db: DuckDBConnection
+      +findByPollAndUser(pollId: int, userId: int) Vote
+      +save(vote: Vote) void
+      +clearByPollId(pollId: int) void
+    }
+
+    class ScheduledMeetingRepository {
+      -db: DuckDBConnection
+      +findAllByUserId(userId: int) List[ScheduledMeeting]
+      +save(meeting: ScheduledMeeting) void
+    }
+
+    class SchedulingConflictReportRepository {
+      -db: DuckDBConnection
+      +save(report: SchedulingConflictReport) void
+      +findByMeetingId(meetingId: int) List[SchedulingConflictReport]
+    }
+
+    %% --- Controller Classes ---
+    class UserController {
+      -userService: UserService
+      +handleRegisterUser(request) Response
+      +handleUpdateProfile(request) Response
+      +handleDeleteAccount(request) Response
+    }
+
+    class AuthController {
+      -authService: AuthenticationService
+      +handleLogin(request) Response
+      +handleLogout(request) Response
+    }
+
+    class PasswordRecoveryController {
+      -recoveryService: PasswordRecoveryService
+      +handleForgotPassword(request) Response
+      +handleResetPassword(request) Response
+    }
+
+    class GroupController {
+      -groupService: GroupService
+      +handleCreateGroup(request) Response
+      +handleEditGroup(request) Response
+      +handleDeleteGroup(request) Response
+      +handleGetMyGroups(request) Response
+    }
+
+    class GroupFileController {
+      -fileService: GroupFileService
+      +handleUploadFile(request) Response
+      +handleDownloadFile(request) Response
+      +handleDeleteFile(request) Response
+    }
+
+    class MembershipController {
+      -membershipService: GroupMembershipService
+      +handleSendInvite(httpRequest: object) HttpResponse
+      +handleAcceptInvite(httpRequest: object) HttpResponse
+      +handleRemoveMember(request) HttpResponse
+      +handleLeaveGroup(request) HttpResponse
+    }
+
+    class AvailabilityController {
+      -availabilityService: AvailabilityService
+      +handleUploadIcs(request) Response
+      +handleGetSchedule(request) Response
+      +handleUpdateSchedule(request) Response
+    }
+
+    class SchedulingController {
+      -suggestionService: MeetingSuggestionService
+      -finalizationService: MeetingFinalizationService
+      +handleGenerateSuggestions(request) Response
+      +handleResetPoll(request) Response
+      +handleFinalizeMeeting(request) Response
+    }
+
+    class VoteController {
+      -votingService: VotingService
+      +handleCastVote(request) Response
+      +handleGetPollStatus(request) Response
+    }
+
+    class MeetingController {
+      -retrievalService: MeetingRetrievalService
+      -conflictService: ConflictReportingService
+      +handleGetMyMeetings(request) Response
+      +handleReportConflict(request) Response
+      +handleExportIcs(request) Response
+    }
+
+    class NotificationController {
+      -notificationService: GroupNotificationService
+      +handleSendManualReminder(request) Response
+    }
+
+    %% --- Infrastructure Utilities ---
+    class IcsParser {
+      +validateFormat(fileBytes: byte) bool
+      +parseToTimeSlots(fileBytes: byte) List[TimeSlot]
+    }
+
+    class IcsExporter {
+      -version: str
+      +exportMeetingToIcs(meeting: ScheduledMeeting) byte
+    }
+
+    class PasswordHasher {
+      -algorithm: str
+      -saltLength: int
+      +hash(password: str) str
+      +verify(password: str, hash: str) bool
+    }
+
+    class TokenProvider {
+      -secretKey: str
+      -tokenValidityInMs: long
+      +generateToken(payload) str
+      +validateToken(token) bool
+      +getPayload(token) str
+    }
+
+    class SessionManager {
+      -activeSessions: Map[str, UserSession]
+      +createSession(userId: int) UserSession
+      +getSession(token: str) UserSession
+      +isSessionActive(token: str) bool
+      +extendSession(token: str, duration: int) void
+      +removeSession(token: str) void
+    }
+
+    class EmailService {
+      -smtpClient: object
+      -senderAddress: str
+      +sendEmail(to, subject, body) void
+      +sendBulkEmail(toList, subject, body) void
+    }
+
+    class AuthEmailTemplateFactory {
+      -templateCache: Map[str, str]
+      +buildConfirmationEmail(firstName: str, email: str) str
+      +buildResetEmail(token: str) str
+      +buildEmailAuthenticationEmail(token: str) str
+    }
+
+    class GroupEmailTemplateFactory {
+      -templateCache: Map[str, str]
+      +buildInvitationEmail(groupName: str, token: str) str
+    }
+
+    class SchedulingEmailTemplateFactory {
+      -templateCache: Map[str, str]
+      +buildMeetingNoticeEmail(meeting: ScheduledMeeting) str
+      +buildConflictNoticeEmail(report: SchedulingConflictReport) str
+    }
