@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from scheduler.controllers.auth_controller import AuthController
+from scheduler.controllers.password_recovery_controller import PasswordRecoveryController
 from scheduler.controllers.user_controller import UserController
 from scheduler.domain.meeting_generator import MeetingGenerator
 from scheduler.infrastructure.auth_email_template_factory import AuthEmailTemplateFactory
@@ -93,4 +95,5 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app = Application(database, sessionManager, mailHost)
     app.emailService = emailService
     app.userController = UserController(userService, authService, sessionManager)
+    app.authController = AuthController(authService)
     return app
