@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Optional
 
 from scheduler.domain.meeting_generator import MeetingGenerator
+from scheduler.infrastructure.auth_email_template_factory import AuthEmailTemplateFactory
 from scheduler.infrastructure.database import Database
 from scheduler.infrastructure.email_service import EmailService
 from scheduler.infrastructure.password_hasher import PasswordHasher
@@ -28,6 +29,7 @@ from scheduler.services.group_membership_service import GroupMembershipService
 from scheduler.services.group_service import GroupService
 from scheduler.services.meeting_finalization_service import MeetingFinalizationService
 from scheduler.services.meeting_suggestion_service import MeetingSuggestionService
+from scheduler.services.password_recovery_service import PasswordRecoveryService
 from scheduler.services.user_service import UserService
 from scheduler.services.voting_service import VotingService
 
@@ -63,6 +65,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     hasher = PasswordHasher()
     tokenProvider = TokenProvider(secretKey, tokenValidityInMs=28_800_000)
     sessionManager = SessionManager(tokenProvider)
+    resetTokenProvider = TokenProvider(secretKey, tokenValidityInMs=3_600_000)
     emailService = EmailService(host=mailHost)
 
     userRepo = UserRepository(database)
@@ -75,6 +78,9 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
 
     userService = UserService(userRepo, hasher)
     authService = AuthenticationService(userRepo, sessionManager, hasher)
+    passwordRecoveryService = PasswordRecoveryService(
+        userRepo, resetTokenProvider, emailService, AuthEmailTemplateFactory(), hasher
+    )
     groupService = GroupService(groupRepo)
     membershipService = GroupMembershipService(groupRepo, inviteRepo)
     availabilityService = AvailabilityService(scheduleRepo)
