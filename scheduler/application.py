@@ -11,6 +11,7 @@ from typing import Optional
 
 from scheduler.domain.meeting_generator import MeetingGenerator
 from scheduler.infrastructure.database import Database
+from scheduler.infrastructure.email_service import EmailService
 from scheduler.infrastructure.password_hasher import PasswordHasher
 from scheduler.infrastructure.session_manager import SessionManager
 from scheduler.infrastructure.token_provider import TokenProvider
@@ -37,6 +38,7 @@ class Application:
         self.database = database
         self.sessionManager = sessionManager
         self.mailHost = mailHost
+        self.emailService = None
         self.userController = None
         self.authController = None
         self.passwordRecoveryController = None
@@ -61,6 +63,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     hasher = PasswordHasher()
     tokenProvider = TokenProvider(secretKey, tokenValidityInMs=28_800_000)
     sessionManager = SessionManager(tokenProvider)
+    emailService = EmailService(host=mailHost)
 
     userRepo = UserRepository(database)
     groupRepo = GroupRepository(database)
@@ -79,4 +82,6 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     votingService = VotingService(voteRepo, pollRepo, groupRepo)
     finalizationService = MeetingFinalizationService(meetingRepo, pollRepo)
 
-    return Application(database, sessionManager, mailHost)
+    app = Application(database, sessionManager, mailHost)
+    app.emailService = emailService
+    return app

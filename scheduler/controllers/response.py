@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from scheduler.infrastructure.email_service import MailDeliveryError
 from scheduler.services.authentication_service import AuthenticationError
 
 
@@ -40,3 +41,5 @@ def respond(action: Callable[[], Any]) -> Response:
         return Response(Response.NOT_FOUND, message=str(error))
     except ValueError as error:
         return Response(Response.INVALID, message=str(error))
+    except MailDeliveryError as error:
+        return Response(Response.MAIL_FAILED, message=str(error))
