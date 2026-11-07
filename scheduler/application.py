@@ -96,4 +96,5 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app.emailService = emailService
     app.userController = UserController(userService, authService, sessionManager)
     app.authController = AuthController(authService)
+    app.passwordRecoveryController = PasswordRecoveryController(passwordRecoveryService)
     return app
