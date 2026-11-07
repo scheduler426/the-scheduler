@@ -37,12 +37,22 @@ class UserController:
 
     def _updateProfile(self, request: dict) -> None:
         session = self._authService.requireSession(request.get("token"))
-        self._userService.updateProfileData(session.userId, request["email"], request["firstName"], request["lastName"])
+        email, firstName, lastName = self._required(request, "email", "firstName", "lastName")
+        self._userService.updateProfileData(session.userId, email, firstName, lastName)
 
     def _deleteAccount(self, request: dict) -> None:
         session = self._authService.requireSession(request.get("token"))
-        self._userService.deleteUserAccount(session.userId, request["password"])
+        (password,) = self._required(request, "password")
+        self._userService.deleteUserAccount(session.userId, password)
         self._sessionManager.removeSessionsForUser(session.userId)
+
+    @staticmethod
+    def _required(request: dict, *keys: str) -> list:
+        """Return the values for keys, raising ValueError for the first one that is missing."""
+        for key in keys:
+            if request.get(key) is None:
+                raise ValueError(f"{key} is required")
+        return [request[key] for key in keys]
 
     @staticmethod
     def _publicUser(user: User) -> dict:

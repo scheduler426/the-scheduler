@@ -74,6 +74,24 @@ def test_updateProfileNeedsSession(app):
     assert app.userController.handleUpdateProfile(request).status == "unauthenticated"
 
 
+@pytest.mark.parametrize("missing", ["email", "firstName", "lastName"])
+def test_updateProfileMissingFieldIsInvalid(app, missing):
+    app.userController.handleRegisterUser(ADA)
+    request = {"token": login(app), "email": "ada@ilstu.edu", "firstName": "Ada", "lastName": "King"}
+    del request[missing]
+    response = app.userController.handleUpdateProfile(request)
+    assert response.status == "invalid"
+    assert response.message == f"{missing} is required"
+
+
+def test_deleteAccountMissingPasswordIsInvalid(app):
+    app.userController.handleRegisterUser(ADA)
+    response = app.userController.handleDeleteAccount({"token": login(app)})
+    assert response.status == "invalid"
+    assert response.message == "password is required"
+    assert app.database.sql("SELECT count(*) FROM users").fetchone()[0] == 1
+
+
 def test_deleteAccount(app):
     app.userController.handleRegisterUser(ADA)
     token = login(app)
