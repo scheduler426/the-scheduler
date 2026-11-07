@@ -1,4 +1,4 @@
-"""Creates an account, updates its profile, and deletes it.
+"""Creates an account, updates its profile, changes its password, and deletes it.
 
 UserRepository stores the user. PasswordHasher hashes the password on
 register and checks it before delete. deleteUserAccount then asks the
@@ -17,7 +17,7 @@ from scheduler.repositories.user_repository import UserRepository
 
 
 class UserService:
-    """Registration, profile edits, and account deletion.
+    """Registration, profile edits, password changes, and account deletion.
 
     Email is stored in lower case, must end with @ilstu.edu, and a duplicate
     email is rejected. A profile update changes the email and name and keeps
@@ -67,6 +67,16 @@ class UserService:
             raise ValueError("Email is already in use by another account")
         self._userRepo.save(
             User(userId, email, user.passwordHash, firstName.strip(), lastName.strip(), user.allowEmailReminders)
+        )
+
+    def changePassword(self, userId: int, currentPassword: str, newPassword: str) -> None:
+        """Replace the password hash after the current password matches."""
+        user = self._requireUser(userId)
+        if not self._hasher.verify(currentPassword, user.passwordHash):
+            raise PermissionError("Password is incorrect")
+        self._validatePassword(newPassword)
+        self._userRepo.save(
+            User(userId, user.email, self._hasher.hash(newPassword), user.firstName, user.lastName, user.allowEmailReminders)
         )
 
     def deleteUserAccount(self, userId: int, password: str) -> None:

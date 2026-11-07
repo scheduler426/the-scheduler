@@ -92,6 +92,38 @@ def test_deleteAccountMissingPasswordIsInvalid(app):
     assert app.database.sql("SELECT count(*) FROM users").fetchone()[0] == 1
 
 
+def test_changePassword(app):
+    app.userController.handleRegisterUser(ADA)
+    request = {"token": login(app), "currentPassword": "secret12", "newPassword": "newpass12"}
+    response = app.userController.handleChangePassword(request)
+    assert response.status == "ok" and response.data is None
+    assert app.authController.handleLogin({"email": "ada@ilstu.edu", "password": "secret12"}).status == "forbidden"
+    assert app.authController.handleLogin({"email": "ada@ilstu.edu", "password": "newpass12"}).status == "ok"
+
+
+def test_changePasswordWrongCurrentIsForbidden(app):
+    app.userController.handleRegisterUser(ADA)
+    request = {"token": login(app), "currentPassword": "wrong123", "newPassword": "newpass12"}
+    response = app.userController.handleChangePassword(request)
+    assert response.status == "forbidden" and response.message == "Password is incorrect"
+    assert app.authController.handleLogin({"email": "ada@ilstu.edu", "password": "secret12"}).status == "ok"
+
+
+def test_changePasswordWeakNewIsInvalid(app):
+    app.userController.handleRegisterUser(ADA)
+    request = {"token": login(app), "currentPassword": "secret12", "newPassword": "short"}
+    response = app.userController.handleChangePassword(request)
+    assert response.status == "invalid" and "at least 8 characters" in response.message
+
+
+def test_changePasswordNeedsSessionAndFields(app):
+    app.userController.handleRegisterUser(ADA)
+    noToken = {"currentPassword": "secret12", "newPassword": "newpass12"}
+    assert app.userController.handleChangePassword(noToken).status == "unauthenticated"
+    missing = app.userController.handleChangePassword({"token": login(app), "currentPassword": "secret12"})
+    assert missing.status == "invalid" and missing.message == "newPassword is required"
+
+
 def test_deleteAccount(app):
     app.userController.handleRegisterUser(ADA)
     token = login(app)

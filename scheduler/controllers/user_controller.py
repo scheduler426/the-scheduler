@@ -1,4 +1,4 @@
-"""Handles sign-up, profile updates, and account deletion.
+"""Handles sign-up, profile updates, password changes, and account deletion.
 
 Registration needs no session; the other handlers require one. UserService
 applies every rule, including the password check before deletion. After a
@@ -32,8 +32,16 @@ class UserController:
     def handleUpdateProfile(self, request: dict) -> Response:
         return respond(lambda: self._updateProfile(request))
 
+    def handleChangePassword(self, request: dict) -> Response:
+        return respond(lambda: self._changePassword(request))
+
     def handleDeleteAccount(self, request: dict) -> Response:
         return respond(lambda: self._deleteAccount(request))
+
+    def _changePassword(self, request: dict) -> None:
+        session = self._authService.requireSession(request.get("token"))
+        currentPassword, newPassword = self._required(request, "currentPassword", "newPassword")
+        self._userService.changePassword(session.userId, currentPassword, newPassword)
 
     def _updateProfile(self, request: dict) -> None:
         session = self._authService.requireSession(request.get("token"))
