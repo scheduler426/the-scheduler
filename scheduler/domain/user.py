@@ -1,22 +1,19 @@
 """A registered person. Profile fields live on this account, not on a separate profile type.
 
-User keeps the name, email, password hash, reminder flag, and an in-memory
-AvailabilitySchedule. UserRepository loads and saves the account, and
-UserService registers and updates it. Hashing, sessions, and schedule
-storage happen elsewhere. allowEmailReminders is only stored here.
+User keeps the name, email, password hash, and reminder flag. UserRepository
+loads and saves the account, and UserService registers and updates it.
+Hashing, sessions, and availability happen elsewhere; a user's schedule is
+read through AvailabilityService. allowEmailReminders is only stored here.
 """
 
 from __future__ import annotations
 
 from typing import Optional
 
-from scheduler.domain.availability_schedule import AvailabilitySchedule
-
 
 class User:
     """Profile and credentials for one account.
 
-    The schedule is created empty when the caller does not pass one.
     This class does not read DuckDB or check that the email is unique.
     """
     def __init__(
@@ -27,7 +24,6 @@ class User:
         firstName: str,
         lastName: str,
         allowEmailReminders: bool = True,
-        availabilitySchedule: Optional[AvailabilitySchedule] = None,
     ):
         self._userId = userId
         self._email = email
@@ -35,7 +31,6 @@ class User:
         self._firstName = firstName
         self._lastName = lastName
         self._allowEmailReminders = allowEmailReminders
-        self._availabilitySchedule = availabilitySchedule or AvailabilitySchedule(userId)
 
     @property
     def userId(self) -> Optional[int]:
@@ -60,7 +55,3 @@ class User:
     @property
     def allowEmailReminders(self) -> bool:
         return self._allowEmailReminders
-
-    @property
-    def availabilitySchedule(self) -> AvailabilitySchedule:
-        return self._availabilitySchedule
