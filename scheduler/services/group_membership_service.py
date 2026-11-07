@@ -80,4 +80,4 @@ class GroupMembershipService:
         self.removeMemberFromRoster(groupId, userId)
 
     def _isMember(self, groupId: int, userId: int) -> bool:
-        return any(member.userId == userId for member in self._groupRepo.findMembers(groupId))
+        return self._groupRepo.isMember(groupId, userId)

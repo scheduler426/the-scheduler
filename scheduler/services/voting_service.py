@@ -18,7 +18,7 @@ class VotingService:
         poll = self._pollRepo.findById(pollId)
         if poll is None:
             raise LookupError("Poll not found")
-        if not any(member.userId == userId for member in self._groupRepo.findMembers(poll.groupId)):
+        if not self._groupRepo.isMember(poll.groupId, userId):
             raise PermissionError("Only group members can vote in this poll")
         vote = self._voteRepo.findByPollAndUser(pollId, userId)
         if vote is None:

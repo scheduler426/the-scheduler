@@ -3,8 +3,8 @@
 Repositories receive this object as a Database and call sql on it instead
 of opening their own database. Construction creates the sequences and
 tables for users, groups, rosters, invitations, availability, polls, votes,
-and meetings. There are no tables for group files, conflict reports, or
-outbound mail.
+meetings, and group file metadata. There are no tables for conflict reports
+or outbound mail.
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ class DuckDBConnection(Database):
         "CREATE SEQUENCE IF NOT EXISTS pollIdSeq START 1",
         "CREATE SEQUENCE IF NOT EXISTS voteIdSeq START 1",
         "CREATE SEQUENCE IF NOT EXISTS meetingIdSeq START 1",
+        "CREATE SEQUENCE IF NOT EXISTS fileIdSeq START 1",
         """
         CREATE TABLE IF NOT EXISTS users (
             userId INTEGER PRIMARY KEY DEFAULT nextval('userIdSeq'),
@@ -112,6 +113,15 @@ class DuckDBConnection(Database):
             startTime TIMESTAMP NOT NULL,
             endTime TIMESTAMP NOT NULL,
             cadence VARCHAR NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS groupFiles (
+            fileId INTEGER PRIMARY KEY DEFAULT nextval('fileIdSeq'),
+            groupId INTEGER NOT NULL,
+            fileName VARCHAR NOT NULL,
+            filePath VARCHAR NOT NULL,
+            uploadedAt TIMESTAMP NOT NULL
         )
         """,
     )
