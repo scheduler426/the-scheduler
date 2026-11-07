@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from scheduler.controllers.user_controller import UserController
 from scheduler.domain.meeting_generator import MeetingGenerator
 from scheduler.infrastructure.auth_email_template_factory import AuthEmailTemplateFactory
 from scheduler.infrastructure.database import Database
@@ -76,10 +77,11 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     voteRepo = VoteRepository(database)
     meetingRepo = ScheduledMeetingRepository(database)
 
-    userService = UserService(userRepo, hasher)
+    authTemplateFactory = AuthEmailTemplateFactory()
+    userService = UserService(userRepo, hasher, emailService, authTemplateFactory)
     authService = AuthenticationService(userRepo, sessionManager, hasher)
     passwordRecoveryService = PasswordRecoveryService(
-        userRepo, resetTokenProvider, emailService, AuthEmailTemplateFactory(), hasher
+        userRepo, resetTokenProvider, emailService, authTemplateFactory, hasher
     )
     groupService = GroupService(groupRepo)
     membershipService = GroupMembershipService(groupRepo, inviteRepo)
@@ -90,4 +92,5 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
 
     app = Application(database, sessionManager, mailHost)
     app.emailService = emailService
+    app.userController = UserController(userService, authService, sessionManager)
     return app
