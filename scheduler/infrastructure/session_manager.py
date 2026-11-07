@@ -70,3 +70,8 @@ class SessionManager:
     def removeSession(self, token: str) -> None:
         """Forget the session. A missing token is ignored."""
         self._activeSessions.pop(token, None)
+
+    def removeSessionsForUser(self, userId: int) -> None:
+        """Forget every session that belongs to userId."""
+        for token in [token for token, session in self._activeSessions.items() if session.userId == userId]:
+            del self._activeSessions[token]

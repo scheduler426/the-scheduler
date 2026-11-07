@@ -3,7 +3,7 @@
 GroupService and GroupMembershipService call these methods. Membership is
 the User-Group association, so it is stored here rather than in a separate
 roster repository. delete clears votes, poll suggestions, polls, meeting
-slots, meetings, invitations, and members before the group row. This class
+slots, meetings, invitations, members, and file rows before the group row. This class
 does not check who requested a change.
 """
 
@@ -61,6 +61,13 @@ class GroupRepository:
         )
         return group.groupId
 
+    def isMember(self, groupId: int, userId: int) -> bool:
+        """True when this user is on the group's roster."""
+        row = self._db.sql(
+            "SELECT 1 FROM groupRoster WHERE groupId = ? AND userId = ?", [groupId, userId]
+        ).fetchone()
+        return row is not None
+
     def addMember(self, groupId: int, userId: int) -> None:
         """Add the membership if that pair is not already stored."""
         self._db.sql(
@@ -72,7 +79,7 @@ class GroupRepository:
         self._db.sql("DELETE FROM groupRoster WHERE groupId = ? AND userId = ?", [groupId, userId])
 
     def delete(self, id: int) -> None:
-        """Delete the group and its polls, votes, meetings, invitations, and members."""
+        """Delete the group and its polls, votes, meetings, invitations, members, and file rows."""
         pollIds = "SELECT pollId FROM meetingPolls WHERE groupId = ?"
         meetingIds = "SELECT meetingId FROM scheduledMeetings WHERE groupId = ?"
         self._db.sql(f"DELETE FROM votes WHERE pollId IN ({pollIds})", [id])
@@ -82,4 +89,5 @@ class GroupRepository:
         self._db.sql("DELETE FROM scheduledMeetings WHERE groupId = ?", [id])
         self._db.sql("DELETE FROM groupInvitations WHERE groupId = ?", [id])
         self._db.sql("DELETE FROM groupRoster WHERE groupId = ?", [id])
+        self._db.sql("DELETE FROM groupFiles WHERE groupId = ?", [id])
         self._db.sql("DELETE FROM groups WHERE groupId = ?", [id])
