@@ -32,3 +32,8 @@ class Database(ABC):
     def sql(self, query: str, params: Optional[Sequence[Any]] = None) -> QueryResult:
         """Run query with params bound to its ? placeholders."""
         ...
+
+    @abstractmethod
+    def close(self) -> None:
+        """Release the connection."""
+        ...

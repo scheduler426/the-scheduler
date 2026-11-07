@@ -138,6 +138,9 @@ class DuckDBConnection(Database):
         """Run query with params and return the DuckDB result."""
         return self._connection.execute(query, list(params or []))
 
+    def close(self) -> None:
+        self._connection.close()
+
     def _initializeSchema(self) -> None:
         for statement in self._SCHEMA:
             self.sql(statement)

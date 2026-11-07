@@ -14,6 +14,10 @@ from scheduler.infrastructure.session_manager import SessionManager
 from scheduler.repositories.user_repository import UserRepository
 
 
+class AuthenticationError(Exception):
+    """Raised when a request has no session or its session is not active."""
+
+
 class AuthenticationService:
     """Login, logout, and a check that a session token is still active.
 
@@ -40,3 +44,12 @@ class AuthenticationService:
     def validateToken(self, token: str) -> bool:
         """True when SessionManager still treats the token as an active session."""
         return self._sessionManager.isSessionActive(token)
+
+    def requireSession(self, token: str | None) -> UserSession:
+        """Return the active session for token, or raise AuthenticationError."""
+        if not token:
+            raise AuthenticationError("Authentication required")
+        session = self._sessionManager.getSession(token)
+        if session is None:
+            raise AuthenticationError("Session is not active")
+        return session
