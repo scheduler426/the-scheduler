@@ -16,6 +16,7 @@ from scheduler.domain.meeting_generator import MeetingGenerator
 from scheduler.infrastructure.auth_email_template_factory import AuthEmailTemplateFactory
 from scheduler.infrastructure.database import Database
 from scheduler.infrastructure.email_service import EmailService
+from scheduler.infrastructure.ics_parser import IcsParser
 from scheduler.infrastructure.password_hasher import PasswordHasher
 from scheduler.infrastructure.session_manager import SessionManager
 from scheduler.infrastructure.token_provider import TokenProvider
@@ -87,7 +88,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     )
     groupService = GroupService(groupRepo)
     membershipService = GroupMembershipService(groupRepo, inviteRepo)
-    availabilityService = AvailabilityService(scheduleRepo)
+    availabilityService = AvailabilityService(scheduleRepo, IcsParser())
     suggestionService = MeetingSuggestionService(MeetingGenerator(), pollRepo, scheduleRepo)
     votingService = VotingService(voteRepo, pollRepo, groupRepo)
     finalizationService = MeetingFinalizationService(meetingRepo, pollRepo)
