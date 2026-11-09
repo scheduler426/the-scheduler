@@ -64,3 +64,26 @@ class SchedulingController:
     def _resetPoll(self, request: dict) -> None:
         session = self._authService.requireSession(request.get("token"))
         self._suggestionService.resetActivePoll(request.get("groupId"), session.userId)
+
+    # Lock in the final meeting time (the top-voted one if no suggestionId is given)
+    def handleFinalizeMeeting(self, request: dict) -> Response:
+        return respond(lambda: self._finalizeMeeting(request))
+
+    def _finalizeMeeting(self, request: dict) -> dict:
+        session = self._authService.requireSession(request.get("token"))
+        meeting = self._finalizationService.confirmFinalTime(
+            request.get("groupId"),
+            request.get("suggestionId"),
+            session.userId,
+            request.get("meetingName") or "Group meeting",
+        )
+        return {
+            "meetingId": meeting.meetingId,
+            "groupId": meeting.groupId,
+            "meetingName": meeting.meetingName,
+            "status": meeting.status,
+            "scheduledSlots": [
+                {"startTime": s.startTime, "endTime": s.endTime, "cadence": s.cadence}
+                for s in meeting.scheduledSlots
+            ],
+        }

@@ -97,7 +97,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     notificationService = GroupNotificationService(emailService, groupRepo, GroupEmailTemplateFactory())
     suggestionService = MeetingSuggestionService(MeetingGenerator(), pollRepo, scheduleRepo, groupRepo)
     votingService = VotingService(voteRepo, pollRepo, groupRepo)
-    finalizationService = MeetingFinalizationService(meetingRepo, pollRepo)
+    finalizationService = MeetingFinalizationService(meetingRepo, pollRepo, notificationService, groupRepo)
 
     app = Application(database, sessionManager, mailHost)
     app.emailService = emailService
