@@ -12,6 +12,7 @@ from typing import Optional
 from scheduler.controllers.auth_controller import AuthController
 from scheduler.controllers.availability_controller import AvailabilityController
 from scheduler.controllers.password_recovery_controller import PasswordRecoveryController
+from scheduler.controllers.scheduling_controller import SchedulingController
 from scheduler.controllers.user_controller import UserController
 from scheduler.domain.meeting_generator import MeetingGenerator
 from scheduler.infrastructure.auth_email_template_factory import AuthEmailTemplateFactory
@@ -90,7 +91,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     groupService = GroupService(groupRepo)
     membershipService = GroupMembershipService(groupRepo, inviteRepo)
     availabilityService = AvailabilityService(scheduleRepo, IcsParser())
-    suggestionService = MeetingSuggestionService(MeetingGenerator(), pollRepo, scheduleRepo)
+    suggestionService = MeetingSuggestionService(MeetingGenerator(), pollRepo, scheduleRepo, groupRepo)
     votingService = VotingService(voteRepo, pollRepo, groupRepo)
     finalizationService = MeetingFinalizationService(meetingRepo, pollRepo)
 
@@ -100,4 +101,5 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app.authController = AuthController(authService)
     app.passwordRecoveryController = PasswordRecoveryController(passwordRecoveryService)
     app.availabilityController = AvailabilityController(availabilityService, authService)
+    app.schedulingController = SchedulingController(suggestionService, finalizationService, authService)
     return app
