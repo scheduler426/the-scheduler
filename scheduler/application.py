@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Optional
 
 from scheduler.controllers.auth_controller import AuthController
+from scheduler.controllers.availability_controller import AvailabilityController
 from scheduler.controllers.password_recovery_controller import PasswordRecoveryController
 from scheduler.controllers.user_controller import UserController
 from scheduler.domain.meeting_generator import MeetingGenerator
@@ -98,4 +99,5 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app.userController = UserController(userService, authService, sessionManager)
     app.authController = AuthController(authService)
     app.passwordRecoveryController = PasswordRecoveryController(passwordRecoveryService)
+    app.availabilityController = AvailabilityController(availabilityService, authService)
     return app
