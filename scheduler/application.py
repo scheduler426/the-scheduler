@@ -14,6 +14,7 @@ from scheduler.controllers.availability_controller import AvailabilityController
 from scheduler.controllers.password_recovery_controller import PasswordRecoveryController
 from scheduler.controllers.scheduling_controller import SchedulingController
 from scheduler.controllers.user_controller import UserController
+from scheduler.controllers.vote_controller import VoteController
 from scheduler.domain.meeting_generator import MeetingGenerator
 from scheduler.infrastructure.auth_email_template_factory import AuthEmailTemplateFactory
 from scheduler.infrastructure.database import Database
@@ -102,4 +103,5 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app.passwordRecoveryController = PasswordRecoveryController(passwordRecoveryService)
     app.availabilityController = AvailabilityController(availabilityService, authService)
     app.schedulingController = SchedulingController(suggestionService, finalizationService, authService)
+    app.voteController = VoteController(votingService, authService)
     return app

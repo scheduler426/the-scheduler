@@ -96,7 +96,7 @@ class DuckDBConnection(Database):
             userId INTEGER NOT NULL,
             suggestionId INTEGER NOT NULL,
             votePreference VARCHAR NOT NULL,
-            UNIQUE (pollId, userId)
+            UNIQUE (pollId, userId, suggestionID)
         )
         """,
         """
