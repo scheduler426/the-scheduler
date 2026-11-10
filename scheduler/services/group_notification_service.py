@@ -19,12 +19,17 @@ class GroupNotificationService:
         self._templateFactory = templateFactory
     
     # Email the chosen members of a group, skipping anyone who turned off reminders
-    def dispatchManualReminder(self, groupId: int, targetUserIds: list[int], message: str) -> None:
+    def dispatchManualReminder(
+        self, groupId: int, targetUserIds: list[int], message: str, senderUserId: int | None = None
+    ) -> None:
         if not message or not message.strip():
             raise ValueError("Reminder message is required")
         group = self._groupRepo.findById(groupId)
         if group is None:
             raise LookupError("Group not found")
+        # Only checked when a sender is given. Finalize and cancel call this without one.
+        if senderUserId is not None and not self._groupRepo.isMember(groupId, senderUserId):
+            raise PermissionError("Only group members can send reminders")
         recipients = [
             member
             for member in self._groupRepo.findMembers(groupId)
