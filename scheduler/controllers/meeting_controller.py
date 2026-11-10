@@ -41,3 +41,16 @@ class MeetingController:
             }
             for m in meetings
         ]
+    # Return one meeting as an .ics file for the front end to write
+    def handleExportIcs(self, request: dict) -> Response:
+        return respond(lambda: self._exportIcs(request))
+
+    def _exportIcs(self, request: dict) -> dict:
+        session = self._authService.requireSession(request.get("token"))
+        meetingId = request.get("meetingId")
+        # A missing or cancelled meeting raises LookupError, which comes back notFound
+        meeting = self._retrievalService.getMeetingForUser(session.userId, meetingId)
+        return {
+            "fileName": f"meeting-{meetingId}.ics",
+            "content": self._icsExporter.exportMeetingToIcs(meeting),
+        }

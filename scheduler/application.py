@@ -22,6 +22,7 @@ from scheduler.infrastructure.database import Database
 from scheduler.infrastructure.email_service import EmailService
 from scheduler.infrastructure.group_email_template_factory import GroupEmailTemplateFactory
 from scheduler.infrastructure.ics_parser import IcsParser
+from scheduler.infrastructure.ics_exporter import IcsExporter
 from scheduler.infrastructure.password_hasher import PasswordHasher
 from scheduler.infrastructure.session_manager import SessionManager
 from scheduler.infrastructure.token_provider import TokenProvider
@@ -78,6 +79,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     sessionManager = SessionManager(tokenProvider)
     resetTokenProvider = TokenProvider(secretKey, tokenValidityInMs=3_600_000)
     emailService = EmailService(host=mailHost)
+    icsExporter = IcsExporter()        
 
     userRepo = UserRepository(database)
     groupRepo = GroupRepository(database)
@@ -110,5 +112,5 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app.availabilityController = AvailabilityController(availabilityService, authService)
     app.schedulingController = SchedulingController(suggestionService, finalizationService, authService)
     app.voteController = VoteController(votingService, authService)
-    app.meetingController = MeetingController(retrievalService, None, None, authService)
+    app.meetingController = MeetingController(retrievalService, None, icsExporter, authService)
     return app
