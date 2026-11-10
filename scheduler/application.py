@@ -91,7 +91,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     pollRepo = MeetingPollRepository(database)
     voteRepo = VoteRepository(database)
     meetingRepo = ScheduledMeetingRepository(database)
-    retrievalService = MeetingRetrievalService(meetingRepo)
+    retrievalService = MeetingRetrievalService(meetingRepo, emailService, icsExporter)
     conflictService = ConflictReportingService(
         emailService, SchedulingEmailTemplateFactory(), retrievalService, groupRepo
     )    

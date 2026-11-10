@@ -51,7 +51,7 @@ def setup():
 
     # Build a controller that uses a fake email service so we can see what was sent
     fakeEmail = FakeEmailService()
-    retrieval = MeetingRetrievalService(meetingRepo)
+    retrieval = MeetingRetrievalService(meetingRepo, None, None)
     conflictService = ConflictReportingService(fakeEmail, SchedulingEmailTemplateFactory(), retrieval, groupRepo)
     controller = MeetingController(retrieval, conflictService, IcsExporter(), app.availabilityController and app.authController._authService)
     return controller, fakeEmail, adaToken, scheduledId, cancelledId

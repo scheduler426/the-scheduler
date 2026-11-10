@@ -57,14 +57,14 @@ def test_only_scheduled_meetings_are_listed():
 
 def test_cancelled_meeting_is_not_found():
     app, meetingRepo, token1, id1, _, _, scheduledId, cancelledId = setup()
-    service = MeetingRetrievalService(meetingRepo)
+    service = MeetingRetrievalService(meetingRepo, None, None)
     with pytest.raises(LookupError, match="Meeting not found"):
         service.getMeetingForUser(id1, cancelledId)
 
 
 def test_scheduled_meeting_is_found():
     app, meetingRepo, token1, id1, _, _, scheduledId, cancelledId = setup()
-    service = MeetingRetrievalService(meetingRepo)
+    service = MeetingRetrievalService(meetingRepo, None, None)
     assert service.getMeetingForUser(id1, scheduledId).meetingName == "Scheduled one"
 
 
@@ -73,7 +73,7 @@ def test_non_member_gets_empty_list():
     r = app.meetingController.handleGetMyMeetings({"token": outsiderToken})
     assert r.status == "ok"
     assert r.data == []
-    service = MeetingRetrievalService(meetingRepo)
+    service = MeetingRetrievalService(meetingRepo, None, None)
     with pytest.raises(LookupError):
         service.getMeetingForUser(outsiderId, scheduledId)
 
