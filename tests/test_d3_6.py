@@ -43,7 +43,7 @@ def setup():
     groupRepo.addMember(group.groupId, boId)
 
     fakeEmail = FakeEmailService()
-    service = GroupNotificationService(fakeEmail, groupRepo, GroupEmailTemplateFactory())
+    service = GroupNotificationService(fakeEmail, groupRepo, GroupEmailTemplateFactory(), None, None, None)
     return service, fakeEmail, group, adaId, boId
 
 

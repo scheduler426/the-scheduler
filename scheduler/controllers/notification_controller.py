@@ -24,3 +24,13 @@ class NotificationController:
         self._notificationService.dispatchManualReminder(
             request.get("groupId"), targetUserIds, request.get("message"), session.userId
         )
+    # Set a reminder for one of the signed-in user's meetings
+    def handleSetMeetingReminder(self, request: dict) -> Response:
+        return respond(lambda: self._setMeetingReminder(request))
+
+    def _setMeetingReminder(self, request: dict) -> dict:
+        session = self._authService.requireSession(request.get("token"))
+        meetingId = request.get("meetingId")
+        sendAt = request.get("sendAt")
+        notificationId = self._notificationService.scheduleMeetingReminder(session.userId, meetingId, sendAt)
+        return {"notificationId": notificationId, "meetingId": meetingId, "sendAt": sendAt}

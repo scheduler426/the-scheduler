@@ -83,7 +83,7 @@ def test_cancelled_meeting_is_no_longer_listed():
 
 def test_broken_mail_still_cancels_and_returns_mail_failed():
     app, groupRepo, meetingRepo, token1, id1, id2, meetingId = setup()
-    notifier = GroupNotificationService(BrokenEmailService(), groupRepo, GroupEmailTemplateFactory())
+    notifier = GroupNotificationService(BrokenEmailService(), groupRepo, GroupEmailTemplateFactory(), None, None, None)
     finalization = MeetingFinalizationService(meetingRepo, MeetingPollRepository(app.database), notifier, groupRepo)
     authService = AuthenticationService(UserRepository(app.database), app.sessionManager, PasswordHasher())
     controller = SchedulingController(app.schedulingController._suggestionService, finalization, authService)

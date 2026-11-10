@@ -6,6 +6,8 @@ module is imported.
 """
 
 from __future__ import annotations
+import threading
+from datetime import datetime
 
 from typing import Optional
 
@@ -32,6 +34,7 @@ from scheduler.repositories.availability_schedule_repository import Availability
 from scheduler.repositories.group_invitation_repository import GroupInvitationRepository
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.meeting_poll_repository import MeetingPollRepository
+from scheduler.repositories.notification_repository import NotificationRepository
 from scheduler.repositories.scheduled_meeting_repository import ScheduledMeetingRepository
 from scheduler.repositories.user_repository import UserRepository
 from scheduler.repositories.vote_repository import VoteRepository
@@ -67,9 +70,38 @@ class Application:
         self.voteController = None
         self.meetingController = None
         self.notificationController = None
+        self.groupNotificationService = None
+        self._reminderThread = None
+        self._reminderStop = threading.Event()        
 
     def close(self) -> None:
+        self.stopReminderLoop()
         self.database.close()
+
+    # Check for due reminders every 60 seconds on a background thread
+    def startReminderLoop(self) -> None:
+        if self._reminderThread is not None and self._reminderThread.is_alive():
+            return
+        self._reminderStop.clear()
+        self._reminderThread = threading.Thread(target=self._runReminderLoop, daemon=True)
+        self._reminderThread.start()
+
+    # Stop the background thread
+    def stopReminderLoop(self) -> None:
+        self._reminderStop.set()
+        if self._reminderThread is not None:
+            self._reminderThread.join(timeout=5)
+        self._reminderThread = None
+
+    def _runReminderLoop(self) -> None:
+        # wait returns True once stop is set, which ends the loop
+        while not self._reminderStop.is_set():
+            try:
+                self.groupNotificationService.deliverDueReminders(datetime.now())
+            except Exception:
+                # One bad run must not kill the loop
+                pass
+            self._reminderStop.wait(60)    
 
 
 def buildApplication(database: Database, secretKey: str, mailHost: Optional[str] = None) -> Application:
@@ -91,6 +123,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     pollRepo = MeetingPollRepository(database)
     voteRepo = VoteRepository(database)
     meetingRepo = ScheduledMeetingRepository(database)
+    notificationRepo = NotificationRepository(database)
     retrievalService = MeetingRetrievalService(meetingRepo, emailService, icsExporter)
     conflictService = ConflictReportingService(
         emailService, SchedulingEmailTemplateFactory(), retrievalService, groupRepo
@@ -105,7 +138,9 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     groupService = GroupService(groupRepo)
     membershipService = GroupMembershipService(groupRepo, inviteRepo)
     availabilityService = AvailabilityService(scheduleRepo, IcsParser())
-    notificationService = GroupNotificationService(emailService, groupRepo, GroupEmailTemplateFactory())
+    notificationService = GroupNotificationService(
+        emailService, groupRepo, GroupEmailTemplateFactory(), notificationRepo, meetingRepo, userRepo
+    )
     suggestionService = MeetingSuggestionService(MeetingGenerator(), pollRepo, scheduleRepo, groupRepo)
     votingService = VotingService(voteRepo, pollRepo, groupRepo)
     finalizationService = MeetingFinalizationService(meetingRepo, pollRepo, notificationService, groupRepo)
@@ -119,5 +154,6 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app.schedulingController = SchedulingController(suggestionService, finalizationService, authService)
     app.voteController = VoteController(votingService, authService)
     app.meetingController = MeetingController(retrievalService, None, icsExporter, authService)
-    app.notificationController = NotificationController(notificationService, authService)    
+    app.notificationController = NotificationController(notificationService, authService)
+    app.groupNotificationService = notificationService        
     return app

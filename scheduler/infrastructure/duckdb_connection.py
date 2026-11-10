@@ -29,6 +29,7 @@ class DuckDBConnection(Database):
         "CREATE SEQUENCE IF NOT EXISTS voteIdSeq START 1",
         "CREATE SEQUENCE IF NOT EXISTS meetingIdSeq START 1",
         "CREATE SEQUENCE IF NOT EXISTS fileIdSeq START 1",
+        "CREATE SEQUENCE IF NOT EXISTS notificationIdSeq START 1",
         """
         CREATE TABLE IF NOT EXISTS users (
             userId INTEGER PRIMARY KEY DEFAULT nextval('userIdSeq'),
@@ -96,7 +97,7 @@ class DuckDBConnection(Database):
             userId INTEGER NOT NULL,
             suggestionId INTEGER NOT NULL,
             votePreference VARCHAR NOT NULL,
-            UNIQUE (pollId, userId, suggestionID)
+            UNIQUE (pollId, userId, suggestionId)
         )
         """,
         """
@@ -122,6 +123,17 @@ class DuckDBConnection(Database):
             fileName VARCHAR NOT NULL,
             filePath VARCHAR NOT NULL,
             uploadedAt TIMESTAMP NOT NULL
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS notifications (
+            notificationId INTEGER PRIMARY KEY DEFAULT nextval('notificationIdSeq'),
+            groupId INTEGER NOT NULL,
+            userId INTEGER NOT NULL,
+            meetingId INTEGER NOT NULL,
+            message VARCHAR NOT NULL,
+            sendAt TIMESTAMP NOT NULL,
+            status VARCHAR NOT NULL
         )
         """,
     )
