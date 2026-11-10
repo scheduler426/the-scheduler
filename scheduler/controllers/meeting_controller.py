@@ -54,3 +54,13 @@ class MeetingController:
             "fileName": f"meeting-{meetingId}.ics",
             "content": self._icsExporter.exportMeetingToIcs(meeting),
         }
+        # Tell the group the signed-in user has a conflict with a meeting
+    def handleReportConflict(self, request: dict) -> Response:
+        return respond(lambda: self._reportConflict(request))
+
+    def _reportConflict(self, request: dict) -> dict:
+        session = self._authService.requireSession(request.get("token"))
+        meetingId = request.get("meetingId")
+        reason = request.get("reason")
+        self._conflictService.reportConflict(session.userId, meetingId, reason)
+        return {"meetingId": meetingId, "reason": reason}
