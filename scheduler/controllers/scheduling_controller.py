@@ -87,3 +87,10 @@ class SchedulingController:
                 for s in meeting.scheduledSlots
             ],
         }
+    # Cancel a meeting and email the other members
+    def handleCancelMeeting(self, request: dict) -> Response:
+        return respond(lambda: self._cancelMeeting(request))
+
+    def _cancelMeeting(self, request: dict) -> None:
+        session = self._authService.requireSession(request.get("token"))
+        self._finalizationService.cancelMeeting(request.get("meetingId"), session.userId)

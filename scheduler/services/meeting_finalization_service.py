@@ -55,3 +55,24 @@ class MeetingFinalizationService:
         except MailDeliveryError:
             raise MailDeliveryError(f"Meeting {meetingId} was saved but the notice was not sent")
         return meeting
+    def cancelMeeting(self, meetingId: int, userId: int) -> None:
+        # findAllByUserId only has meetings in the user's groups, so this also checks membership
+        meeting = next(
+            (
+                m
+                for m in self._meetingRepo.findAllByUserId(userId)
+                if m.meetingId == meetingId and m.status == ScheduledMeeting.SCHEDULED
+            ),
+            None,
+        )
+        if meeting is None:
+            raise LookupError("Meeting not found")
+        meeting.cancelMeeting()
+        self._meetingRepo.save(meeting)
+        otherIds = [member.userId for member in self._groupRepo.findMembers(meeting.groupId) if member.userId != userId]
+        try:
+            self._notifier.dispatchManualReminder(
+                meeting.groupId, otherIds, f'"{meeting.meetingName}" has been cancelled.'
+            )
+        except MailDeliveryError:
+            raise MailDeliveryError(f"Meeting {meetingId} was cancelled but the notice was not sent")
