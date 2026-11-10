@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Optional
 
 from scheduler.domain.group import Group
+from scheduler.services.group_file_service import GroupFileService
 from scheduler.repositories.group_repository import GroupRepository
 
 
@@ -21,8 +22,9 @@ class GroupService:
     modifyGroupDetails leaves a name or description unchanged when the
     caller passes None.
     """
-    def __init__(self, groupRepo: GroupRepository):
+    def __init__(self, groupRepo: GroupRepository, fileService: GroupFileService):
         self._groupRepo = groupRepo
+        self._fileService = fileService
 
     def createGroup(self, userId: int, name: str, desc: str = "") -> Group:
         """Save the group, add the creator as a member, and return the stored group."""
@@ -30,9 +32,11 @@ class GroupService:
         self._groupRepo.addMember(groupId, userId)
         return self._requireGroup(groupId)
 
-    def modifyGroupDetails(self, groupId: int, name: Optional[str], desc: Optional[str]) -> None:
+    def modifyGroupDetails(self, groupId: int, name: Optional[str], desc: Optional[str], userId: int) -> None:
         """Update the name, the description, or both. None keeps the current value."""
         group = self._requireGroup(groupId)
+        if not self._groupRepo.isMember(groupId, userId):
+            raise PermissionError("Only group members can edit this group")
         self._groupRepo.save(
             Group(
                 groupId,
@@ -41,9 +45,12 @@ class GroupService:
             )
         )
 
-    def deleteGroup(self, groupId: int) -> None:
-        """Delete the group after checking that it exists. Related rows go with GroupRepository.delete."""
-        self._requireGroup(groupId)
+    def deleteGroup(self, groupId: int, userId: int) -> None:
+        """Delete its files and then the group after checking membership."""
+        group = self._requireGroup(groupId)
+        if not self._groupRepo.isMember(groupId, userId):
+            raise PermissionError("Only group members can delete this group")
+        self._fileService.removeGroupFiles(groupId, userId)
         self._groupRepo.delete(groupId)
 
     def getGroups(self, userId: int) -> list[Group]:
