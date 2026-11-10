@@ -11,6 +11,7 @@ from typing import Optional
 
 from scheduler.controllers.auth_controller import AuthController
 from scheduler.controllers.availability_controller import AvailabilityController
+from scheduler.controllers.meeting_controller import MeetingController
 from scheduler.controllers.password_recovery_controller import PasswordRecoveryController
 from scheduler.controllers.scheduling_controller import SchedulingController
 from scheduler.controllers.user_controller import UserController
@@ -37,6 +38,7 @@ from scheduler.services.group_membership_service import GroupMembershipService
 from scheduler.services.group_notification_service import GroupNotificationService
 from scheduler.services.group_service import GroupService
 from scheduler.services.meeting_finalization_service import MeetingFinalizationService
+from scheduler.services.meeting_retrieval_service import MeetingRetrievalService
 from scheduler.services.meeting_suggestion_service import MeetingSuggestionService
 from scheduler.services.password_recovery_service import PasswordRecoveryService
 from scheduler.services.user_service import UserService
@@ -84,6 +86,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     pollRepo = MeetingPollRepository(database)
     voteRepo = VoteRepository(database)
     meetingRepo = ScheduledMeetingRepository(database)
+    retrievalService = MeetingRetrievalService(meetingRepo)
 
     authTemplateFactory = AuthEmailTemplateFactory()
     userService = UserService(userRepo, hasher, emailService, authTemplateFactory)
@@ -107,4 +110,5 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app.availabilityController = AvailabilityController(availabilityService, authService)
     app.schedulingController = SchedulingController(suggestionService, finalizationService, authService)
     app.voteController = VoteController(votingService, authService)
+    app.meetingController = MeetingController(retrievalService, None, None, authService)
     return app
