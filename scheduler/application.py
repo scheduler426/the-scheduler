@@ -7,19 +7,25 @@ module is imported.
 
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 from scheduler.controllers.auth_controller import AuthController
+from scheduler.controllers.group_file_controller import GroupFileController
+from scheduler.controllers.group_controller import GroupController
+from scheduler.controllers.membership_controller import MembershipController
 from scheduler.controllers.password_recovery_controller import PasswordRecoveryController
 from scheduler.controllers.user_controller import UserController
 from scheduler.domain.meeting_generator import MeetingGenerator
 from scheduler.infrastructure.auth_email_template_factory import AuthEmailTemplateFactory
 from scheduler.infrastructure.database import Database
 from scheduler.infrastructure.email_service import EmailService
+from scheduler.infrastructure.group_email_template_factory import GroupEmailTemplateFactory
 from scheduler.infrastructure.password_hasher import PasswordHasher
 from scheduler.infrastructure.session_manager import SessionManager
 from scheduler.infrastructure.token_provider import TokenProvider
 from scheduler.repositories.availability_schedule_repository import AvailabilityScheduleRepository
+from scheduler.repositories.group_file_repository import GroupFileRepository
 from scheduler.repositories.group_invitation_repository import GroupInvitationRepository
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.meeting_poll_repository import MeetingPollRepository
@@ -29,6 +35,7 @@ from scheduler.repositories.vote_repository import VoteRepository
 from scheduler.services.authentication_service import AuthenticationService
 from scheduler.services.availability_service import AvailabilityService
 from scheduler.services.group_membership_service import GroupMembershipService
+from scheduler.services.group_file_service import GroupFileService
 from scheduler.services.group_service import GroupService
 from scheduler.services.meeting_finalization_service import MeetingFinalizationService
 from scheduler.services.meeting_suggestion_service import MeetingSuggestionService
@@ -73,6 +80,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
 
     userRepo = UserRepository(database)
     groupRepo = GroupRepository(database)
+    fileRepo = GroupFileRepository(database)
     inviteRepo = GroupInvitationRepository(database)
     scheduleRepo = AvailabilityScheduleRepository(database)
     pollRepo = MeetingPollRepository(database)
@@ -85,8 +93,18 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     passwordRecoveryService = PasswordRecoveryService(
         userRepo, resetTokenProvider, emailService, authTemplateFactory, hasher
     )
-    groupService = GroupService(groupRepo)
-    membershipService = GroupMembershipService(groupRepo, inviteRepo)
+    storageDirectory = os.environ.get("GROUP_FILE_DIR", "data/group-files")
+    fileService = GroupFileService(fileRepo, groupRepo, storageDirectory)
+    groupService = GroupService(groupRepo, fileService)
+    membershipService = GroupMembershipService(
+        groupRepo,
+        inviteRepo,
+        userRepo,
+        emailService,
+        GroupEmailTemplateFactory(
+            {"invitation": "You have been invited to join {groupName}. Use this token to accept: {token}"}
+        ),
+    )
     availabilityService = AvailabilityService(scheduleRepo)
     suggestionService = MeetingSuggestionService(MeetingGenerator(), pollRepo, scheduleRepo)
     votingService = VotingService(voteRepo, pollRepo, groupRepo)
@@ -97,4 +115,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app.userController = UserController(userService, authService, sessionManager)
     app.authController = AuthController(authService)
     app.passwordRecoveryController = PasswordRecoveryController(passwordRecoveryService)
+    app.groupController = GroupController(groupService, authService)
+    app.membershipController = MembershipController(membershipService, authService)
+    app.groupFileController = GroupFileController(fileService, authService)
     return app
