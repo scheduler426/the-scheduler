@@ -90,4 +90,5 @@ class GroupRepository:
         self._db.sql("DELETE FROM groupInvitations WHERE groupId = ?", [id])
         self._db.sql("DELETE FROM groupRoster WHERE groupId = ?", [id])
         self._db.sql("DELETE FROM groupFiles WHERE groupId = ?", [id])
+        self._db.sql("DELETE FROM notifications WHERE groupId = ?", [id])
         self._db.sql("DELETE FROM groups WHERE groupId = ?", [id])

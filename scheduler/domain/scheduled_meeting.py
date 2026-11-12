@@ -1,8 +1,8 @@
-"""A meeting a group has already placed on the calendar.
+"""Name, status, and chosen TimeSlot values for one group meeting.
 
-MeetingFinalizationService creates one from a chosen poll suggestion.
-ScheduledMeetingRepository loads and saves the meeting and its slots.
-cancelMeeting changes only the status held on this object.
+    Status starts as scheduled. Cancelling sets it to cancelled and refuses
+    a second cancel. This object does not email anyone; MeetingFinalizationService
+    tells the other members. Nobody's availability changes.
 """
 
 from __future__ import annotations
