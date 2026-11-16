@@ -28,10 +28,14 @@ class IcsParser(CalendarParser):
             and "END:VEVENT" in text
         )
 
-    # Turn 20260301T090000Z or 20260301T090000 into a datetime
-    def _toDatetime(self, value: str) -> datetime:
-        return datetime.strptime(value.rstrip("Z"), "%Y%m%dT%H%M%S")
-
+    # Turn 20260301T090000Z or 20260301T090000 into a datetime (the Z is dropped).
+    # Returns None if the value is not in that format, such as an all-day date like 20261103.
+    def _toDatetime(self, value: str):
+        try:
+            return datetime.strptime(value.strip().rstrip("Z"), "%Y%m%dT%H%M%S")
+        except ValueError:
+            return None
+        
     # Make one TimeSlot for each event that has a start and an end
     def parseToSlots(self, fileBytes: bytes) -> list[TimeSlot]:
         slots = []

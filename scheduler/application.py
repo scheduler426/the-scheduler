@@ -7,6 +7,7 @@ module is imported.
 
 from __future__ import annotations
 import threading
+import logging
 from datetime import datetime
 
 from typing import Optional
@@ -99,7 +100,8 @@ class Application:
             try:
                 self.groupNotificationService.deliverDueReminders(datetime.now())
             except Exception:
-                # One bad run must not kill the loop
+                # One bad run must not kill the loop, but it should be visible
+                logging.getLogger(__name__).exception("Reminder loop failed")
                 pass
             self._reminderStop.wait(60)    
 
@@ -153,7 +155,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app.availabilityController = AvailabilityController(availabilityService, authService)
     app.schedulingController = SchedulingController(suggestionService, finalizationService, authService)
     app.voteController = VoteController(votingService, authService)
-    app.meetingController = MeetingController(retrievalService, None, icsExporter, authService)
+    app.meetingController = MeetingController(retrievalService, conflictService, icsExporter, authService)
     app.notificationController = NotificationController(notificationService, authService)
     app.groupNotificationService = notificationService        
     return app

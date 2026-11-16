@@ -21,6 +21,14 @@ class MeetingController:
         self._icsExporter = icsExporter
         self._authService = authService
 
+    # Return the values for keys, raising ValueError for the first one that is missing
+    @staticmethod
+    def _required(request: dict, *keys: str) -> list:
+        for key in keys:
+            if request.get(key) is None:
+                raise ValueError(f"{key} is required")
+        return [request[key] for key in keys]
+
     # List the signed-in user's meetings that are still on
     def handleGetMyMeetings(self, request: dict) -> Response:
         return respond(lambda: self._getMyMeetings(request))
@@ -47,7 +55,7 @@ class MeetingController:
 
     def _exportIcs(self, request: dict) -> dict:
         session = self._authService.requireSession(request.get("token"))
-        meetingId = request.get("meetingId")
+        (meetingId,) = self._required(request, "meetingId")
         # A missing or cancelled meeting raises LookupError, which comes back notFound
         meeting = self._retrievalService.getMeetingForUser(session.userId, meetingId)
         return {
@@ -61,8 +69,7 @@ class MeetingController:
 
     def _reportConflict(self, request: dict) -> dict:
         session = self._authService.requireSession(request.get("token"))
-        meetingId = request.get("meetingId")
-        reason = request.get("reason")
+        meetingId, reason = self._required(request, "meetingId", "reason")
         self._conflictService.reportConflict(session.userId, meetingId, reason)
         return {"meetingId": meetingId, "reason": reason}
 
@@ -72,4 +79,5 @@ class MeetingController:
 
     def _shareMeetings(self, request: dict) -> None:
         session = self._authService.requireSession(request.get("token"))
-        self._retrievalService.shareUserMeetings(session.userId, request.get("email"))
+        (email,) = self._required(request, "email")
+        self._retrievalService.shareUserMeetings(session.userId, email)

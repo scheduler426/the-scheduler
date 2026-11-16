@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import Any, Optional, Sequence
 
 import duckdb
+import threading
 
 from scheduler.infrastructure.database import Database
 
@@ -141,14 +142,27 @@ class DuckDBConnection(Database):
     def __init__(self, connectionPath: str = ":memory:"):
         self._connectionPath = connectionPath
         self._connection = duckdb.connect(connectionPath)
+        # The thread that built the connection keeps using it. Any other thread gets its own cursor.
+        self._owner = threading.current_thread()
+        self._local = threading.local()
         self._initializeSchema()
 
     def cursor(self) -> duckdb.DuckDBPyConnection:
         return self._connection.cursor()
 
+ # A cursor is a separate connection to the same database, so threads cannot mix up results
+    def _connectionForThread(self):
+        if threading.current_thread() is self._owner:
+            return self._connection
+        cursor = getattr(self._local, "cursor", None)
+        if cursor is None:
+            cursor = self._connection.cursor()
+            self._local.cursor = cursor
+        return cursor
+
     def sql(self, query: str, params: Optional[Sequence[Any]] = None) -> duckdb.DuckDBPyConnection:
         """Run query with params and return the DuckDB result."""
-        return self._connection.execute(query, list(params or []))
+        return self._connectionForThread().execute(query, list(params or []))
 
     def close(self) -> None:
         self._connection.close()

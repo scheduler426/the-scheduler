@@ -82,8 +82,14 @@ class GroupNotificationService:
     def deliverDueReminders(self, now: datetime) -> None:
         for notification in self._notificationRepo.findDue(now):
             user = self._userRepo.findById(notification.userId)
-            if user is None or not user.allowEmailReminders:
-                # Nobody to email, so close it out without sending
+            # Skip the email if the meeting was cancelled or the user left the group.
+            # findAllByUserId only has meetings in the user's groups.
+            meetingStillOn = any(
+                m.meetingId == notification.meetingId and m.status == ScheduledMeeting.SCHEDULED
+                for m in self._meetingRepo.findAllByUserId(notification.userId)
+            )
+            if user is None or not user.allowEmailReminders or not meetingStillOn:
+                # Nothing to send, so close it out without emailing
                 notification.markSent()
                 self._notificationRepo.save(notification)
                 continue

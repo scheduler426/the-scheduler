@@ -88,3 +88,23 @@ def test_cancelled_meeting_is_not_found():
 def test_no_token_is_unauthenticated():
     controller, fakeEmail, adaToken, scheduledId, _ = setup()
     assert controller.handleReportConflict({"meetingId": scheduledId, "reason": "x"}).status == "unauthenticated"
+
+def test_report_conflict_through_the_real_app(capsys):
+    app = buildApplication(DuckDBConnection(":memory:"), secretKey="test-secret", mailHost="console")
+    adaToken, adaId = makeUser(app, "ada@ilstu.edu", "Ada", "Lovelace")
+    boToken, boId = makeUser(app, "bo@ilstu.edu", "Bo", "Test")
+    groupRepo = GroupRepository(app.database)
+    group = GroupService(groupRepo).createGroup(adaId, "IT 426", "")
+    groupRepo.addMember(group.groupId, boId)
+    slot = TimeSlot(datetime(2026, 11, 2, 15, 0), datetime(2026, 11, 2, 16, 0), "weekly")
+    meetingId = ScheduledMeetingRepository(app.database).save(
+        ScheduledMeeting(None, group.groupId, "IT 426 weekly", [slot])
+    )
+    capsys.readouterr()
+    r = app.meetingController.handleReportConflict(
+        {"token": adaToken, "meetingId": meetingId, "reason": "Exam that day"}
+    )
+    assert r.status == "ok"
+    out = capsys.readouterr().out
+    assert "To: bo@ilstu.edu" in out
+    assert "Subject: Schedule conflict reported" in out

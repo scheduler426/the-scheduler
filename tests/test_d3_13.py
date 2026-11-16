@@ -6,6 +6,7 @@ from scheduler.application import buildApplication
 from scheduler.domain.scheduled_meeting import ScheduledMeeting
 from scheduler.domain.time_slot import TimeSlot
 from scheduler.infrastructure.duckdb_connection import DuckDBConnection
+from scheduler.infrastructure.email_service import MailDeliveryError
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.notification_repository import NotificationRepository
 from scheduler.repositories.scheduled_meeting_repository import ScheduledMeetingRepository
@@ -125,3 +126,27 @@ def test_no_token_is_unauthenticated():
         {"meetingId": scheduledId, "sendAt": datetime.now() + timedelta(minutes=1)}
     )
     assert r.status == "unauthenticated"
+
+def test_failed_send_stays_scheduled():
+    app, token1, id1, scheduledId, _ = setup()
+    sendAt = datetime.now() + timedelta(minutes=1)
+    app.notificationController.handleSetMeetingReminder(
+        {"token": token1, "meetingId": scheduledId, "sendAt": sendAt}
+    )
+
+    # Make every single-email send fail, like a bad mail host
+    def failingSend(to, subject, body):
+        raise MailDeliveryError("SMTP host is not reachable")
+
+    app.groupNotificationService._emailService.sendEmail = failingSend
+
+    # The run must not crash, and the reminder must stay scheduled
+    app.groupNotificationService.deliverDueReminders(sendAt + timedelta(seconds=1))
+    assert statuses(app) == ["scheduled"]
+
+    # A later run with a working mail host sends it and marks it sent
+    sent = []
+    app.groupNotificationService._emailService.sendEmail = lambda to, subject, body: sent.append(to)
+    app.groupNotificationService.deliverDueReminders(sendAt + timedelta(minutes=1))
+    assert sent == ["user1@ilstu.edu"]
+    assert statuses(app) == ["sent"]

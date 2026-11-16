@@ -2,6 +2,8 @@
 
 from datetime import datetime, timedelta
 
+from datetime import datetime, timedelta
+
 from scheduler.application import buildApplication
 from scheduler.domain.meeting_poll import MeetingPoll
 from scheduler.domain.time_slot import TimeSlot
@@ -9,7 +11,15 @@ from scheduler.infrastructure.duckdb_connection import DuckDBConnection
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.meeting_poll_repository import MeetingPollRepository
 from scheduler.services.group_service import GroupService
-
+from scheduler.controllers.scheduling_controller import SchedulingController
+from scheduler.infrastructure.email_service import MailDeliveryError
+from scheduler.infrastructure.group_email_template_factory import GroupEmailTemplateFactory
+from scheduler.infrastructure.password_hasher import PasswordHasher
+from scheduler.repositories.scheduled_meeting_repository import ScheduledMeetingRepository
+from scheduler.repositories.user_repository import UserRepository
+from scheduler.services.authentication_service import AuthenticationService
+from scheduler.services.group_notification_service import GroupNotificationService
+from scheduler.services.meeting_finalization_service import MeetingFinalizationService
 
 def makeApp():
     return buildApplication(DuckDBConnection(":memory:"), secretKey="test-secret", mailHost="console")
@@ -110,3 +120,28 @@ def test_no_active_poll_is_not_found():
 def test_no_token_is_unauthenticated():
     app, groupId, *_ = setup()
     assert app.schedulingController.handleFinalizeMeeting({"groupId": groupId}).status == "unauthenticated"
+
+class BrokenEmailService:
+    # Every send fails, like a bad mail host
+    def sendBulkEmail(self, toList, subject, body):
+        raise MailDeliveryError("SMTP host is not reachable")
+
+
+def test_mail_failure_keeps_meeting_and_closes_poll():
+    app, groupId, pollId, token1, token2, _ = setup()
+    vote(app, token1, pollId, "Yes", "If need be")
+    groupRepo = GroupRepository(app.database)
+    meetingRepo = ScheduledMeetingRepository(app.database)
+    pollRepo = MeetingPollRepository(app.database)
+    notifier = GroupNotificationService(BrokenEmailService(), groupRepo, GroupEmailTemplateFactory(), None, None, None)
+    finalization = MeetingFinalizationService(meetingRepo, pollRepo, notifier, groupRepo)
+    authService = AuthenticationService(UserRepository(app.database), app.sessionManager, PasswordHasher())
+    controller = SchedulingController(app.schedulingController._suggestionService, finalization, authService)
+
+    r = controller.handleFinalizeMeeting({"token": token1, "groupId": groupId})
+
+    assert r.status == "mailFailed"
+    assert "was saved but the notice was not sent" in r.message
+    # The meeting exists and the poll is closed
+    assert len(meetingRepo.findAllByGroupId(groupId) if hasattr(meetingRepo, "findAllByGroupId") else meetingRepo.findAllByUserId(1)) == 1
+    assert pollRepo.findActiveByGroupId(groupId) is None

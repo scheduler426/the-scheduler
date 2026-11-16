@@ -25,18 +25,18 @@ class SchedulingController:
 
     def _generateSuggestions(self, request: dict) -> dict:
         session = self._authService.requireSession(request.get("token"))
+        groupId, windowStart, windowEnd = self._required(request, "groupId", "windowStart", "windowEnd")
         constraints = {
-            "windowStart": request.get("windowStart"),
-            "windowEnd": request.get("windowEnd"),
+            "windowStart": windowStart,
+            "windowEnd": windowEnd,
             "durationMinutes": request.get("durationMinutes", 60),
             "stepMinutes": request.get("stepMinutes", 30),
             "maxSuggestions": request.get("maxSuggestions", 5),
             "cadence": request.get("cadence", "weekly"),
         }
-        # Leave pollClosesAt out when not given, so the poll closes in 2 days
         if request.get("pollClosesAt") is not None:
             constraints["pollClosesAt"] = request["pollClosesAt"]
-        poll = self._suggestionService.generateSuggestions(request.get("groupId"), constraints, session.userId)
+        poll = self._suggestionService.generateSuggestions(groupId, constraints, session.userId)
         return self._pollData(poll)
 
     @staticmethod
@@ -56,6 +56,13 @@ class SchedulingController:
                 for suggestionId, slot in poll.suggestions.items()
             ],
         }
+    # Return the values for keys, raising ValueError for the first one that is missing
+    @staticmethod
+    def _required(request: dict, *keys: str) -> list:
+        for key in keys:
+            if request.get(key) is None:
+                raise ValueError(f"{key} is required")
+        return [request[key] for key in keys]    
     
     # Throw away the group's active poll so suggestions can start over
     def handleResetPoll(self, request: dict) -> Response:
@@ -63,7 +70,8 @@ class SchedulingController:
 
     def _resetPoll(self, request: dict) -> None:
         session = self._authService.requireSession(request.get("token"))
-        self._suggestionService.resetActivePoll(request.get("groupId"), session.userId)
+        (groupId,) = self._required(request, "groupId")
+        self._suggestionService.resetActivePoll(groupId, session.userId)
 
     # Lock in the final meeting time (the top-voted one if no suggestionId is given)
     def handleFinalizeMeeting(self, request: dict) -> Response:
@@ -71,8 +79,9 @@ class SchedulingController:
 
     def _finalizeMeeting(self, request: dict) -> dict:
         session = self._authService.requireSession(request.get("token"))
+        (groupId,) = self._required(request, "groupId")
         meeting = self._finalizationService.confirmFinalTime(
-            request.get("groupId"),
+            groupId,
             request.get("suggestionId"),
             session.userId,
             request.get("meetingName") or "Group meeting",
@@ -93,4 +102,5 @@ class SchedulingController:
 
     def _cancelMeeting(self, request: dict) -> None:
         session = self._authService.requireSession(request.get("token"))
-        self._finalizationService.cancelMeeting(request.get("meetingId"), session.userId)
+        (meetingId,) = self._required(request, "meetingId")
+        self._finalizationService.cancelMeeting(meetingId, session.userId)

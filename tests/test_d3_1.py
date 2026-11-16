@@ -39,3 +39,37 @@ def test_bad_file_keeps_old_slots():
         service.importIcsCalendar(userId, "cal.ics", b"hello")
     slots = service.getUserAvailability(userId).retrieveAvailabilitySchedule()
     assert len(slots) == 1
+
+def test_all_day_event_is_skipped_not_fatal():
+    ics = (
+        b"BEGIN:VCALENDAR\r\n"
+        b"BEGIN:VEVENT\r\n"
+        b"DTSTART;VALUE=DATE:20261103\r\n"
+        b"DTEND;VALUE=DATE:20261104\r\n"
+        b"END:VEVENT\r\n"
+        b"BEGIN:VEVENT\r\n"
+        b"DTSTART:20261103T150000Z\r\n"
+        b"DTEND:20261103T160000Z\r\n"
+        b"END:VEVENT\r\n"
+        b"END:VCALENDAR\r\n"
+    )
+    slots = IcsParser().parseToSlots(ics)
+    assert len(slots) == 1
+    assert slots[0].startTime.hour == 15
+
+def test_folded_line_and_missing_dtend():
+    ics = (
+        b"BEGIN:VCALENDAR\r\n"
+        b"BEGIN:VEVENT\r\n"
+        b"DTSTART:20261103T150000Z\r\n"
+        b"DTEND:20261103T16\r\n"
+        b" 0000Z\r\n"
+        b"END:VEVENT\r\n"
+        b"BEGIN:VEVENT\r\n"
+        b"DTSTART:20261104T150000Z\r\n"
+        b"END:VEVENT\r\n"
+        b"END:VCALENDAR\r\n"
+    )
+    slots = IcsParser().parseToSlots(ics)
+    assert len(slots) == 1
+    assert slots[0].endTime.hour == 16

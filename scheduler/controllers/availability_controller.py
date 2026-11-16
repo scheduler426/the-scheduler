@@ -13,6 +13,14 @@ class AvailabilityController:
         self._availabilityService = availabilityService
         self._authService = authService
 
+    # Return the values for keys, raising ValueError for the first one that is missing
+    @staticmethod
+    def _required(request: dict, *keys: str) -> list:
+        for key in keys:
+            if request.get(key) is None:
+                raise ValueError(f"{key} is required")
+        return [request[key] for key in keys]
+
     # Return the signed-in user's saved slots
     def handleGetSchedule(self, request: dict) -> Response:
         return respond(lambda: self._getSchedule(request))
@@ -33,21 +41,24 @@ class AvailabilityController:
 
     def _updateSchedule(self, request: dict) -> None:
         session = self._authService.requireSession(request.get("token"))
-        rawSlots = request.get("slots")
+        (rawSlots,) = self._required(request, "slots")
         if not isinstance(rawSlots, list):
             raise ValueError("slots must be a list")
-        # TimeSlot raises ValueError for a bad slot, which comes back as invalid
-        slots = [TimeSlot(s["startTime"], s["endTime"], s["cadence"]) for s in rawSlots]
-        # An empty list clears the schedule
+        slots = []
+        for s in rawSlots:
+            if not isinstance(s, dict):
+                raise ValueError("each slot must be an object")
+            for key in ("startTime", "endTime", "cadence"):
+                if s.get(key) is None:
+                    raise ValueError(f"{key} is required")
+            slots.append(TimeSlot(s["startTime"], s["endTime"], s["cadence"]))
         self._availabilityService.saveManualSchedule(session.userId, slots)
-        # Replace the signed-in user's slots with the events in an uploaded .ics file
     def handleUploadIcs(self, request: dict) -> Response:
         return respond(lambda: self._uploadIcs(request))
 
     def _uploadIcs(self, request: dict) -> None:
         session = self._authService.requireSession(request.get("token"))
-        fileName = request.get("fileName")
-        fileBytes = request.get("fileBytes")
+        fileName, fileBytes = self._required(request, "fileName", "fileBytes")
         if not isinstance(fileBytes, bytes):
             raise ValueError("fileBytes must be bytes")
         # The service checks the file and raises ValueError if it is not a valid calendar

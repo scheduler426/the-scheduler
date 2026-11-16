@@ -12,20 +12,30 @@ class VoteController:
         self._votingService = votingService
         self._authService = authService
 
+    # Return the values for keys, raising ValueError for the first one that is missing
+    @staticmethod
+    def _required(request: dict, *keys: str) -> list:
+        for key in keys:
+            if request.get(key) is None:
+                raise ValueError(f"{key} is required")
+        return [request[key] for key in keys]
+
     # Cast one vote per choice in the request
     def handleCastVote(self, request: dict) -> Response:
         return respond(lambda: self._castVote(request))
 
     def _castVote(self, request: dict) -> list[dict]:
         session = self._authService.requireSession(request.get("token"))
-        choices = request.get("choices")
+        pollId, choices = self._required(request, "pollId", "choices")
         if not isinstance(choices, list):
             raise ValueError("choices must be a list")
+        # Check every choice before saving any, so one bad choice saves nothing
+        for choice in choices:
+            if not isinstance(choice, dict) or choice.get("suggestionId") is None or choice.get("preference") is None:
+                raise ValueError("each choice needs suggestionId and preference")
         votes = [
-            self._votingService.castVote(
-                session.userId, request.get("pollId"), choice["suggestionId"], choice["preference"]
-            )
-            for choice in choices
+            self._votingService.castVote(session.userId, pollId, c["suggestionId"], c["preference"])
+            for c in choices
         ]
         return [
             {
@@ -44,7 +54,7 @@ class VoteController:
 
     def _getPollStatus(self, request: dict) -> dict:
         session = self._authService.requireSession(request.get("token"))
-        groupId = request.get("groupId")
+        (groupId,) = self._required(request, "groupId")
         poll = self._votingService.getPollStatus(groupId, session.userId)
         unvoted = self._votingService.getUnvotedMembers(groupId, session.userId)
         return {

@@ -109,3 +109,8 @@ def test_nineteen_members_finish_under_two_seconds():
     elapsed = time.perf_counter() - start
     assert r.status == "ok"
     assert elapsed < 2
+
+def test_missing_window_is_invalid():
+    app, groupId, token1, _ = makeGroupWithTwoMembers()
+    assert app.schedulingController.handleGenerateSuggestions({"token": token1, "groupId": groupId}).status == "invalid"
+    assert app.schedulingController.handleGenerateSuggestions({"token": token1, **WINDOW}).status == "invalid"
