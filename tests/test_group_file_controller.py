@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
 
 from scheduler.application import buildApplication
 from scheduler.infrastructure.duckdb_connection import DuckDBConnection
+import scheduler.services.group_file_service as group_file_service_module
 
 
 @pytest.fixture
@@ -73,6 +75,59 @@ def test_handleDeleteFileMapsRuntimeErrorToFileError(groupFileApp, monkeypatch):
 
     assert response.status == "fileError"
     assert response.message == errorMessage
+
+
+def test_uploadingPptxCreatesNoFileOrMetadata(groupFileApp, tmp_path):
+    app, token, groupId = groupFileApp
+
+    response = app.groupFileController.handleUploadFile(
+        {"token": token, "groupId": groupId, "fileName": "slides.pptx", "fileBytes": b"slides"}
+    )
+
+    assert response.status == "invalid"
+    assert app.database.sql("SELECT count(*) FROM groupFiles").fetchone()[0] == 0
+    assert list(tmp_path.rglob("*")) == []
+
+
+def test_readOnlyStorageFailureReturnsFileError(groupFileApp, monkeypatch):
+    app, token, groupId = groupFileApp
+    upload = app.groupFileController.handleUploadFile(
+        {"token": token, "groupId": groupId, "fileName": "notes.txt", "fileBytes": b"Group notes"}
+    )
+    fileId = upload.data["fileId"]
+    storedPath = app.groupFileController.handleDownloadFile({"token": token, "fileId": fileId}).data["path"]
+
+    def denyRemoval(path):
+        raise PermissionError("storage folder is read-only")
+
+    monkeypatch.setattr(group_file_service_module, "os", SimpleNamespace(remove=denyRemoval))
+
+    response = app.groupFileController.handleDeleteFile({"token": token, "fileId": fileId})
+
+    assert response.status == "fileError"
+    assert app.database.sql("SELECT count(*) FROM groupFiles WHERE fileId = ?", [fileId]).fetchone()[0] == 1
+    assert Path(storedPath).exists()
+
+
+def test_deletingGroupThroughControllerRemovesItsFilesAndRows(groupFileApp):
+    app, token, groupId = groupFileApp
+    uploads = [
+        app.groupFileController.handleUploadFile(
+            {"token": token, "groupId": groupId, "fileName": fileName, "fileBytes": contents}
+        )
+        for fileName, contents in [("first.txt", b"first"), ("second.pdf", b"second")]
+    ]
+    storedPaths = [
+        app.groupFileController.handleDownloadFile({"token": token, "fileId": upload.data["fileId"]}).data["path"]
+        for upload in uploads
+    ]
+
+    response = app.groupController.handleDeleteGroup({"token": token, "groupId": groupId})
+
+    assert response.status == "ok"
+    assert all(not Path(path).exists() for path in storedPaths)
+    assert app.database.sql("SELECT count(*) FROM groupFiles WHERE groupId = ?", [groupId]).fetchone()[0] == 0
+    assert app.database.sql("SELECT 1 FROM groups WHERE groupId = ?", [groupId]).fetchone() is None
 
 
 @pytest.mark.parametrize(

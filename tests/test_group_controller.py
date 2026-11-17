@@ -72,3 +72,25 @@ def test_groupControllerRejectsBlankName(appAndToken):
 
     assert response.status == "invalid"
     assert response.message == "groupName is required"
+
+
+def test_nonMemberCannotEditOrDeleteAnotherUsersGroup(appAndToken):
+    app, _ = appAndToken
+    ada = app.userController.handleRegisterUser(
+        {"email": "ada@ilstu.edu", "password": "secret12", "firstName": "Ada", "lastName": "Student"}
+    )
+    adaToken = app.sessionManager.createSession(ada.data["userId"]).token
+    bo = app.userController.handleRegisterUser(
+        {"email": "bo@ilstu.edu", "password": "secret12", "firstName": "Bo", "lastName": "Student"}
+    )
+    boToken = app.sessionManager.createSession(bo.data["userId"]).token
+    group = app.groupController.handleCreateGroup({"token": adaToken, "name": "Ada's group"}).data
+
+    editResponse = app.groupController.handleEditGroup(
+        {"token": boToken, "groupId": group["groupId"], "name": "Bo's group"}
+    )
+    deleteResponse = app.groupController.handleDeleteGroup({"token": boToken, "groupId": group["groupId"]})
+
+    assert editResponse.status == "forbidden"
+    assert deleteResponse.status == "forbidden"
+    assert app.groupController.handleGetMyGroups({"token": adaToken}).data == [group]

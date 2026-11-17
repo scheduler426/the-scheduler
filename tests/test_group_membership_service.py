@@ -40,18 +40,45 @@ def test_inviteUserKeepsSavedInvitationWhenEmailFails():
         inviteRepo,
         userRepo,
         emailService,
-        GroupEmailTemplateFactory({"invitation": "Join {groupName} with token {token}"}),
+        GroupEmailTemplateFactory(),
     )
 
     with pytest.raises(MailDeliveryError, match=r"Invitation .+ was saved but the email was not sent") as error:
         service.inviteUser(groupId, "student@ilstu.edu", 17)
 
-    token = emailService.sent[0][2].split("token ", 1)[1]
+    token = emailService.sent[0][2].rsplit(" ", 1)[1]
     assert str(error.value) == f"Invitation {token} was saved but the email was not sent"
     assert emailService.sent[0][:2] == ("student@ilstu.edu", "Invitation to IT 426")
     assert db.sql(
         "SELECT inviteeEmail, status, inviteToken FROM groupInvitations WHERE inviteToken = ?", [token]
     ).fetchone() == ("student@ilstu.edu", "pending", token)
+    db.close()
+
+
+@pytest.mark.parametrize(
+    "email",
+    ["bo@ilstu.edu.evil.com", "bo@ilstu.education", "@ilstu.edu", "bo.ilstu.edu"],
+)
+def test_inviteUserRejectsLookalikeOrMalformedIlstuAddresses(email):
+    db = DuckDBConnection(":memory:")
+    groupRepo = GroupRepository(db)
+    groupId = groupRepo.save(Group(None, "IT 426"))
+    groupRepo.addMember(groupId, 17)
+    inviteRepo = GroupInvitationRepository(db)
+    emailService = FailingEmailService()
+    service = GroupMembershipService(
+        groupRepo,
+        inviteRepo,
+        UserRepository(db),
+        emailService,
+        GroupEmailTemplateFactory(),
+    )
+
+    with pytest.raises(ValueError, match="Invitations must go to an @ilstu.edu address"):
+        service.inviteUser(groupId, email, 17)
+
+    assert db.sql("SELECT count(*) FROM groupInvitations").fetchone()[0] == 0
+    assert emailService.sent == []
     db.close()
 
 
@@ -68,7 +95,7 @@ def makeInvitationService(db):
             inviteRepo,
             userRepo,
             FailingEmailService(),
-            GroupEmailTemplateFactory({"invitation": "Join {groupName}: {token}"}),
+            GroupEmailTemplateFactory(),
         ),
     )
 

@@ -25,6 +25,9 @@ class GroupFileService:
             raise PermissionError("Only group members can upload files")
         if not fileName or not fileBytes:
             raise ValueError("A file name and contents are required")
+
+        if not fileName or not isinstance(fileBytes, bytes) or not fileBytes:
+            raise ValueError("File content must be bytes")
         if len(fileBytes) > 20 * 1024 * 1024:
             raise ValueError("Files must be 20 MiB or smaller")
 
@@ -35,8 +38,15 @@ class GroupFileService:
         groupDirectory = os.path.join(self._storageDirectory, str(groupId))
         os.makedirs(groupDirectory, exist_ok=True)
         path = os.path.join(groupDirectory, f"{uuid.uuid4()}-{baseName}")
-        with open(path, "wb") as file:
-            file.write(fileBytes)
+        try:
+            with open(path, "wb") as file:
+                file.write(fileBytes)
+        except OSError as error:
+            try:
+                os.remove(path)
+            except FileNotFoundError:
+                pass
+            raise ValueError("File could not be written") from error
 
         try:
             return self._fileRepo.saveFileMetadata(groupId, baseName, path, datetime.now())
@@ -98,6 +108,10 @@ class GroupFileService:
 
     def removeGroupFiles(self, groupId: int, userId: int) -> None:
         """Remove every file belonging to a group, stopping on the first failure."""
+        groupFile = self._fileRepo.findByGroupId(groupId)
+        if groupFile is None:
+            raise RuntimeError("No files found for this group")
+
         for groupFile in self._fileRepo.findByGroupId(groupId):
             self.removeFileFromGroup(groupFile.fileId, userId)
     

@@ -64,7 +64,8 @@ class GroupMembershipService:
             datetime.now() + self._inviteValidity,
         )
 
-        if "@ilstu.edu" not in invitation.inviteeEmail:
+        local, _, domain = invitation.inviteeEmail.partition("@")
+        if not local or domain != "ilstu.edu":
             raise ValueError("Invitations must go to an @ilstu.edu address")
         self._inviteRepo.save(invitation)
 

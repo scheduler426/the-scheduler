@@ -12,6 +12,7 @@ from scheduler.domain.group import Group
 from scheduler.infrastructure.duckdb_connection import DuckDBConnection
 from scheduler.repositories.group_file_repository import GroupFileRepository
 from scheduler.repositories.group_repository import GroupRepository
+import scheduler.services.group_file_service as group_file_service_module
 from scheduler.services.group_file_service import GroupFileService
 
 
@@ -81,6 +82,24 @@ def test_attachFileToGroupRemovesFileWhenMetadataSaveFails(fileContext, monkeypa
         service.attachFileToGroup(groupId, "notes.txt", b"contents", 17)
 
     assert list((tmp_path / str(groupId)).iterdir()) == []
+
+
+def test_attachFileToGroupRemovesPartialFileWhenWriteFails(fileContext, monkeypatch, tmp_path):
+    _, _, fileRepo, service, groupId = fileContext
+    realOpen = open
+
+    def failWrite(path, mode):
+        with realOpen(path, mode) as file:
+            file.write(b"partial")
+        raise OSError("disk full")
+
+    monkeypatch.setattr(group_file_service_module, "open", failWrite, raising=False)
+
+    with pytest.raises(ValueError, match="File could not be written"):
+        service.attachFileToGroup(groupId, "notes.txt", b"full contents", 17)
+
+    assert list((tmp_path / str(groupId)).iterdir()) == []
+    assert fileRepo.findByGroupId(groupId) == []
 
 
 def test_getFileStreamReturnsNameAndAbsolutePath(fileContext):

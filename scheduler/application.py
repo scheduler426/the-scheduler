@@ -101,9 +101,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
         inviteRepo,
         userRepo,
         emailService,
-        GroupEmailTemplateFactory(
-            {"invitation": "You have been invited to join {groupName}. Use this token to accept: {token}"}
-        ),
+        GroupEmailTemplateFactory(),
     )
     availabilityService = AvailabilityService(scheduleRepo)
     suggestionService = MeetingSuggestionService(MeetingGenerator(), pollRepo, scheduleRepo)

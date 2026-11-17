@@ -1,9 +1,6 @@
 class GroupEmailTemplateFactory:
-    def __init__(self, templateCache: dict[str, str]):
-        self.templateCache = templateCache
+    def __init__(self):
+        pass
 
     def buildInvitationEmail(self, groupName: str, token: str) -> str:
-        template = self.templateCache.get("invitation")
-        if template is None:
-            raise ValueError("Invitation email template not found")
-        return template.format(groupName=groupName, token=token)
+        return f"You have been invited to join {groupName}. Use this token to accept: {token}"

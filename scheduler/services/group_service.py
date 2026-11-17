@@ -50,6 +50,9 @@ class GroupService:
         group = self._requireGroup(groupId)
         if not self._groupRepo.isMember(groupId, userId):
             raise PermissionError("Only group members can delete this group")
+        
+        """check if file can or cannot be deleted"""
+
         self._fileService.removeGroupFiles(groupId, userId)
         self._groupRepo.delete(groupId)
 

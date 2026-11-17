@@ -49,6 +49,21 @@ def test_handleSendInviteReturnsInvitationData(groupApp):
     )
 
 
+def test_handleSendInviteEmailContainsSubjectAndToken(groupApp, capsys):
+    app, token, groupId = groupApp
+    capsys.readouterr()
+
+    response = app.membershipController.handleSendInvite(
+        {"token": token, "groupId": groupId, "emails": ["invitee@ilstu.edu"]}
+    )
+
+    inviteToken = response.data[0]["inviteToken"]
+    output = capsys.readouterr().out
+    assert response.status == "ok"
+    assert "Subject: Invitation to IT 426" in output
+    assert f"Use this token to accept: {inviteToken}" in output
+
+
 def test_handleSendInviteReportsSavedTokensOnPartialMailFailure(groupApp, monkeypatch):
     app, token, groupId = groupApp
     sent = []
@@ -165,3 +180,33 @@ def test_handleDeclineInviteRequiresToken(groupApp):
 
     assert response.status == "invalid"
     assert response.message == "inviteToken is required"
+
+
+def test_declineInvitePreventsLaterAcceptAndDeclineAndUnknownIsNotFound(groupApp):
+    app, senderToken, groupId = groupApp
+    invitee = app.userController.handleRegisterUser(
+        {"email": "invitee@ilstu.edu", "password": "secret12", "firstName": "Invitee", "lastName": "Student"}
+    )
+    inviteeToken = app.sessionManager.createSession(invitee.data["userId"]).token
+    invitation = app.membershipController.handleSendInvite(
+        {"token": senderToken, "groupId": groupId, "emails": ["invitee@ilstu.edu"]}
+    ).data[0]
+    inviteToken = invitation["inviteToken"]
+
+    declined = app.membershipController.handleDeclineInvite({"inviteToken": inviteToken})
+    acceptAfterDecline = app.membershipController.handleAcceptInvite(
+        {"token": inviteeToken, "inviteToken": inviteToken}
+    )
+    declineAgain = app.membershipController.handleDeclineInvite({"inviteToken": inviteToken})
+    unknownToken = app.membershipController.handleDeclineInvite({"inviteToken": "unknown-token"})
+
+    assert declined.status == "ok"
+    assert app.database.sql(
+        "SELECT status FROM groupInvitations WHERE inviteToken = ?", [inviteToken]
+    ).fetchone() == ("declined",)
+    assert app.database.sql(
+        "SELECT 1 FROM groupRoster WHERE groupId = ? AND userId = ?", [groupId, invitee.data["userId"]]
+    ).fetchone() is None
+    assert acceptAfterDecline.status == "invalid"
+    assert declineAgain.status == "invalid"
+    assert unknownToken.status == "notFound"
