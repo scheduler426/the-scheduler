@@ -25,7 +25,10 @@ class GroupController:
         return respond(lambda: self._editGroup(request))
 
     def handleDeleteGroup(self, request: dict) -> Response:
-        return respond(lambda: self._deleteGroup(request))
+        try:
+            return respond(lambda: self._deleteGroup(request))
+        except RuntimeError as error:
+            return Response(Response.FILE_ERROR, message=str(error))
 
     def _createGroup(self, request: dict) -> dict:
         session = self._authService.requireSession(request.get("token"))

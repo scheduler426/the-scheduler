@@ -130,6 +130,25 @@ def test_deletingGroupThroughControllerRemovesItsFilesAndRows(groupFileApp):
     assert app.database.sql("SELECT 1 FROM groups WHERE groupId = ?", [groupId]).fetchone() is None
 
 
+def test_deletingGroupWhenAFileCannotBeRemovedReturnsFileErrorAndKeepsGroup(groupFileApp, monkeypatch):
+    app, token, groupId = groupFileApp
+    upload = app.groupFileController.handleUploadFile(
+        {"token": token, "groupId": groupId, "fileName": "notes.txt", "fileBytes": b"Group notes"}
+    )
+
+    def denyRemoval(path):
+        raise PermissionError("file is locked")
+
+    monkeypatch.setattr(group_file_service_module, "os", SimpleNamespace(remove=denyRemoval))
+
+    response = app.groupController.handleDeleteGroup({"token": token, "groupId": groupId})
+
+    assert response.status == "fileError"
+    assert app.database.sql("SELECT 1 FROM groups WHERE groupId = ?", [groupId]).fetchone() is not None
+    fileRow = app.database.sql("SELECT 1 FROM groupFiles WHERE fileId = ?", [upload.data["fileId"]]).fetchone()
+    assert fileRow is not None
+
+
 @pytest.mark.parametrize(
     "handler,payload",
     [

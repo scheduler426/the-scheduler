@@ -44,7 +44,7 @@ class GroupFileService:
         except OSError as error:
             try:
                 os.remove(path)
-            except FileNotFoundError:
+            except OSError:
                 pass
             raise ValueError("File could not be written") from error
 
@@ -108,10 +108,6 @@ class GroupFileService:
 
     def removeGroupFiles(self, groupId: int, userId: int) -> None:
         """Remove every file belonging to a group, stopping on the first failure."""
-        groupFile = self._fileRepo.findByGroupId(groupId)
-        if groupFile is None:
-            raise RuntimeError("No files found for this group")
-
         for groupFile in self._fileRepo.findByGroupId(groupId):
             self.removeFileFromGroup(groupFile.fileId, userId)
     

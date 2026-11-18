@@ -102,6 +102,24 @@ def test_attachFileToGroupRemovesPartialFileWhenWriteFails(fileContext, monkeypa
     assert fileRepo.findByGroupId(groupId) == []
 
 
+def test_attachFileToGroupRaisesValueErrorWhenCleanupAlsoFails(fileContext, monkeypatch):
+    _, _, fileRepo, service, groupId = fileContext
+
+    def failOpen(path, mode):
+        raise OSError("The filename, directory name, or volume label syntax is incorrect")
+
+    def failRemove(path):
+        raise OSError("The filename, directory name, or volume label syntax is incorrect")
+
+    monkeypatch.setattr(group_file_service_module, "open", failOpen, raising=False)
+    monkeypatch.setattr(group_file_service_module.os, "remove", failRemove)
+
+    with pytest.raises(ValueError, match="File could not be written"):
+        service.attachFileToGroup(groupId, "a?.txt", b"contents", 17)
+
+    assert fileRepo.findByGroupId(groupId) == []
+
+
 def test_getFileStreamReturnsNameAndAbsolutePath(fileContext):
     _, _, _, service, groupId = fileContext
     fileId = service.attachFileToGroup(groupId, "notes.txt", b"Group notes", 17)
