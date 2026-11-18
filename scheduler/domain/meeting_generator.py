@@ -41,12 +41,15 @@ class MeetingGenerator:
         stepMinutes: int = 30,
         maxSuggestions: int = 5,
         pollClosesAt: Optional[datetime] = None,
+        cadence: str = "weekly", 
     ) -> None:
         """Remember the window, length, step, suggestion cap, and optional close time."""
         if windowEnd <= windowStart:
             raise ValueError("windowEnd must be after windowStart")
         if durationMinutes <= 0 or stepMinutes <= 0 or maxSuggestions <= 0:
             raise ValueError("durationMinutes, stepMinutes and maxSuggestions must be positive")
+        if cadence not in ("once", "daily", "weekly"):
+            raise ValueError("cadence must be once, daily, or weekly")
         self._constraints = {
             "windowStart": windowStart,
             "windowEnd": windowEnd,
@@ -54,6 +57,7 @@ class MeetingGenerator:
             "step": timedelta(minutes=stepMinutes),
             "maxSuggestions": maxSuggestions,
             "pollClosesAt": pollClosesAt,
+            "cadence": cadence,
         }
 
     def generateMeetingSuggestions(self, availabilitySchedules: Iterable[AvailabilitySchedule]) -> list[TimeSlot]:
@@ -85,8 +89,9 @@ class MeetingGenerator:
     def _candidateSlots(self) -> Iterator[TimeSlot]:
         current = self._constraints["windowStart"]
         duration = self._constraints["duration"]
+        cadence = self._constraints["cadence"]
         while current + duration <= self._constraints["windowEnd"]:
-            yield TimeSlot(current, current + duration)
+            yield TimeSlot(current, current + duration, cadence)
             current += self._constraints["step"]
 
     @staticmethod
