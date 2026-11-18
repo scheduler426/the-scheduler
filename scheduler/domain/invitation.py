@@ -13,10 +13,11 @@ from datetime import datetime
 class Invitation:
     """Who invited whom, the token, the status, and the expiry.
 
-    Status is pending or accepted. Expiry is a timestamp chosen by the caller.
+    Status is pending, accepted, or declined. Expiry is a timestamp chosen by the caller.
     """
     PENDING = "pending"
     ACCEPTED = "accepted"
+    DECLINED = "declined"
 
     def __init__(
         self,

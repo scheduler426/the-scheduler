@@ -22,6 +22,7 @@ class Response:
     FORBIDDEN = "forbidden"
     UNAUTHENTICATED = "unauthenticated"
     MAIL_FAILED = "mailFailed"
+    FILE_ERROR = "fileError"
 
     def __init__(self, status: str, data: Any = None, message: str = ""):
         self.status = status

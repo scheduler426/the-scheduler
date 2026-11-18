@@ -8,8 +8,10 @@ from scheduler.application import buildApplication
 from scheduler.domain.meeting_poll import MeetingPoll
 from scheduler.domain.time_slot import TimeSlot
 from scheduler.infrastructure.duckdb_connection import DuckDBConnection
+from scheduler.repositories.group_file_repository import GroupFileRepository
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.meeting_poll_repository import MeetingPollRepository
+from scheduler.services.group_file_service import GroupFileService
 from scheduler.services.group_service import GroupService
 from scheduler.controllers.scheduling_controller import SchedulingController
 from scheduler.infrastructure.email_service import MailDeliveryError
@@ -42,7 +44,7 @@ def setup():
     token2, id2 = makeUser(app, 2)
     outsiderToken, _ = makeUser(app, 3)
     groupRepo = GroupRepository(app.database)
-    group = GroupService(groupRepo).createGroup(id1, "IT 426", "")
+    group = GroupService(groupRepo, GroupFileService(GroupFileRepository(app.database), groupRepo, ".")).createGroup(id1, "IT 426", "")
     groupRepo.addMember(group.groupId, id2)
     suggestions = {
         1: TimeSlot(datetime(2026, 11, 2, 15, 0), datetime(2026, 11, 2, 16, 0), "weekly"),

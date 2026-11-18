@@ -10,11 +10,15 @@ import threading
 import logging
 from datetime import datetime
 
+import os
 from typing import Optional
 
 from scheduler.controllers.auth_controller import AuthController
 from scheduler.controllers.availability_controller import AvailabilityController
+from scheduler.controllers.group_controller import GroupController
+from scheduler.controllers.group_file_controller import GroupFileController
 from scheduler.controllers.meeting_controller import MeetingController
+from scheduler.controllers.membership_controller import MembershipController
 from scheduler.controllers.notification_controller import NotificationController
 from scheduler.controllers.password_recovery_controller import PasswordRecoveryController
 from scheduler.controllers.scheduling_controller import SchedulingController
@@ -32,6 +36,7 @@ from scheduler.infrastructure.scheduling_email_template_factory import Schedulin
 from scheduler.infrastructure.session_manager import SessionManager
 from scheduler.infrastructure.token_provider import TokenProvider
 from scheduler.repositories.availability_schedule_repository import AvailabilityScheduleRepository
+from scheduler.repositories.group_file_repository import GroupFileRepository
 from scheduler.repositories.group_invitation_repository import GroupInvitationRepository
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.meeting_poll_repository import MeetingPollRepository
@@ -43,6 +48,7 @@ from scheduler.services.authentication_service import AuthenticationService
 from scheduler.services.availability_service import AvailabilityService
 from scheduler.services.conflict_reporting_service import ConflictReportingService
 from scheduler.services.group_membership_service import GroupMembershipService
+from scheduler.services.group_file_service import GroupFileService
 from scheduler.services.group_notification_service import GroupNotificationService
 from scheduler.services.group_service import GroupService
 from scheduler.services.meeting_finalization_service import MeetingFinalizationService
@@ -120,6 +126,7 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
 
     userRepo = UserRepository(database)
     groupRepo = GroupRepository(database)
+    fileRepo = GroupFileRepository(database)
     inviteRepo = GroupInvitationRepository(database)
     scheduleRepo = AvailabilityScheduleRepository(database)
     pollRepo = MeetingPollRepository(database)
@@ -137,8 +144,16 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     passwordRecoveryService = PasswordRecoveryService(
         userRepo, resetTokenProvider, emailService, authTemplateFactory, hasher
     )
-    groupService = GroupService(groupRepo)
-    membershipService = GroupMembershipService(groupRepo, inviteRepo)
+    storageDirectory = os.environ.get("GROUP_FILE_DIR", "data/group-files")
+    fileService = GroupFileService(fileRepo, groupRepo, storageDirectory)
+    groupService = GroupService(groupRepo, fileService)
+    membershipService = GroupMembershipService(
+        groupRepo,
+        inviteRepo,
+        userRepo,
+        emailService,
+        GroupEmailTemplateFactory(),
+    )
     availabilityService = AvailabilityService(scheduleRepo, IcsParser())
     notificationService = GroupNotificationService(
         emailService, groupRepo, GroupEmailTemplateFactory(), notificationRepo, meetingRepo, userRepo
@@ -152,10 +167,13 @@ def buildApplication(database: Database, secretKey: str, mailHost: Optional[str]
     app.userController = UserController(userService, authService, sessionManager)
     app.authController = AuthController(authService)
     app.passwordRecoveryController = PasswordRecoveryController(passwordRecoveryService)
+    app.groupController = GroupController(groupService, authService)
+    app.membershipController = MembershipController(membershipService, authService)
+    app.groupFileController = GroupFileController(fileService, authService)
     app.availabilityController = AvailabilityController(availabilityService, authService)
     app.schedulingController = SchedulingController(suggestionService, finalizationService, authService)
     app.voteController = VoteController(votingService, authService)
     app.meetingController = MeetingController(retrievalService, conflictService, icsExporter, authService)
     app.notificationController = NotificationController(notificationService, authService)
-    app.groupNotificationService = notificationService        
+    app.groupNotificationService = notificationService
     return app

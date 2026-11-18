@@ -7,8 +7,10 @@ from scheduler.domain.scheduled_meeting import ScheduledMeeting
 from scheduler.domain.time_slot import TimeSlot
 from scheduler.infrastructure.duckdb_connection import DuckDBConnection
 from scheduler.infrastructure.ics_parser import IcsParser
+from scheduler.repositories.group_file_repository import GroupFileRepository
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.scheduled_meeting_repository import ScheduledMeetingRepository
+from scheduler.services.group_file_service import GroupFileService
 from scheduler.services.group_service import GroupService
 
 START = datetime(2026, 11, 2, 15, 0)
@@ -24,7 +26,7 @@ def setup():
     token = app.authController.handleLogin({"email": "ada@ilstu.edu", "password": "secret12"}).data["token"]
     userId = app.sessionManager.getSession(token).userId
     groupRepo = GroupRepository(app.database)
-    group = GroupService(groupRepo).createGroup(userId, "IT 426", "")
+    group = GroupService(groupRepo, GroupFileService(GroupFileRepository(app.database), groupRepo, ".")).createGroup(userId, "IT 426", "")
 
     slot = TimeSlot(START, END, "weekly")
     meetingRepo = ScheduledMeetingRepository(app.database)

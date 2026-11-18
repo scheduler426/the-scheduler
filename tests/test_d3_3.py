@@ -5,7 +5,9 @@ from datetime import datetime
 
 from scheduler.application import buildApplication
 from scheduler.infrastructure.duckdb_connection import DuckDBConnection
+from scheduler.repositories.group_file_repository import GroupFileRepository
 from scheduler.repositories.group_repository import GroupRepository
+from scheduler.services.group_file_service import GroupFileService
 from scheduler.services.group_service import GroupService
 
 WEEKLY = {"startTime": datetime(2026, 11, 2, 15, 0), "endTime": datetime(2026, 11, 2, 16, 0), "cadence": "weekly"}
@@ -32,7 +34,7 @@ def makeUser(app, number, slots=None):
 def makeGroup(app, creatorId, memberIds):
     # Create a group and add the other members to it
     groupRepo = GroupRepository(app.database)
-    group = GroupService(groupRepo).createGroup(creatorId, "Project", "")
+    group = GroupService(groupRepo, GroupFileService(GroupFileRepository(app.database), groupRepo, ".")).createGroup(creatorId, "Project", "")
     for memberId in memberIds:
         groupRepo.addMember(group.groupId, memberId)
     return group.groupId

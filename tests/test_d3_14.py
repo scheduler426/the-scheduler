@@ -9,10 +9,12 @@ from scheduler.domain.time_slot import TimeSlot
 from scheduler.infrastructure.duckdb_connection import DuckDBConnection
 from scheduler.infrastructure.ics_exporter import IcsExporter
 from scheduler.infrastructure.password_hasher import PasswordHasher
+from scheduler.repositories.group_file_repository import GroupFileRepository
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.scheduled_meeting_repository import ScheduledMeetingRepository
 from scheduler.repositories.user_repository import UserRepository
 from scheduler.services.authentication_service import AuthenticationService
+from scheduler.services.group_file_service import GroupFileService
 from scheduler.services.group_service import GroupService
 from scheduler.services.meeting_retrieval_service import MeetingRetrievalService
 
@@ -41,7 +43,7 @@ def setup():
     token1, id1 = makeUser(app, 1)
     token2, id2 = makeUser(app, 2)
     groupRepo = GroupRepository(app.database)
-    group = GroupService(groupRepo).createGroup(id1, "IT 426", "")
+    group = GroupService(groupRepo, GroupFileService(GroupFileRepository(app.database), groupRepo, ".")).createGroup(id1, "IT 426", "")
 
     slot = TimeSlot(datetime(2026, 11, 2, 15, 0), datetime(2026, 11, 2, 16, 0), "weekly")
     meetingRepo = ScheduledMeetingRepository(app.database)

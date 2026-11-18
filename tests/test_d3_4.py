@@ -6,9 +6,11 @@ from scheduler.application import buildApplication
 from scheduler.domain.meeting_poll import MeetingPoll
 from scheduler.domain.time_slot import TimeSlot
 from scheduler.infrastructure.duckdb_connection import DuckDBConnection
+from scheduler.repositories.group_file_repository import GroupFileRepository
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.meeting_poll_repository import MeetingPollRepository
 from scheduler.repositories.vote_repository import VoteRepository
+from scheduler.services.group_file_service import GroupFileService
 from scheduler.services.group_service import GroupService
 
 
@@ -28,7 +30,7 @@ def makeUser(app, number):
 
 def makeGroup(app, creatorId, memberIds):
     groupRepo = GroupRepository(app.database)
-    group = GroupService(groupRepo).createGroup(creatorId, "Project", "")
+    group = GroupService(groupRepo, GroupFileService(GroupFileRepository(app.database), groupRepo, ".")).createGroup(creatorId, "Project", "")
     for memberId in memberIds:
         groupRepo.addMember(group.groupId, memberId)
     return group.groupId

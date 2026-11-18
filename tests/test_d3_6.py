@@ -5,9 +5,11 @@ import pytest
 from scheduler.application import buildApplication
 from scheduler.infrastructure.duckdb_connection import DuckDBConnection
 from scheduler.infrastructure.group_email_template_factory import GroupEmailTemplateFactory
+from scheduler.repositories.group_file_repository import GroupFileRepository
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.user_repository import UserRepository
 from scheduler.services.group_notification_service import GroupNotificationService
+from scheduler.services.group_file_service import GroupFileService
 from scheduler.services.group_service import GroupService
 
 
@@ -39,7 +41,7 @@ def setup():
     app.database.sql("UPDATE users SET allowEmailReminders = FALSE WHERE userId = ?", [boId])
 
     groupRepo = GroupRepository(app.database)
-    group = GroupService(groupRepo).createGroup(adaId, "IT 426", "")
+    group = GroupService(groupRepo, GroupFileService(GroupFileRepository(app.database), groupRepo, ".")).createGroup(adaId, "IT 426", "")
     groupRepo.addMember(group.groupId, boId)
 
     fakeEmail = FakeEmailService()

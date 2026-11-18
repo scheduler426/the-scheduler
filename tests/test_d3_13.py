@@ -7,9 +7,11 @@ from scheduler.domain.scheduled_meeting import ScheduledMeeting
 from scheduler.domain.time_slot import TimeSlot
 from scheduler.infrastructure.duckdb_connection import DuckDBConnection
 from scheduler.infrastructure.email_service import MailDeliveryError
+from scheduler.repositories.group_file_repository import GroupFileRepository
 from scheduler.repositories.group_repository import GroupRepository
 from scheduler.repositories.notification_repository import NotificationRepository
 from scheduler.repositories.scheduled_meeting_repository import ScheduledMeetingRepository
+from scheduler.services.group_file_service import GroupFileService
 from scheduler.services.group_service import GroupService
 
 
@@ -27,7 +29,7 @@ def setup():
     app = buildApplication(DuckDBConnection(":memory:"), secretKey="test-secret", mailHost="console")
     token1, id1 = makeUser(app, 1)
     groupRepo = GroupRepository(app.database)
-    group = GroupService(groupRepo).createGroup(id1, "IT 426", "")
+    group = GroupService(groupRepo, GroupFileService(GroupFileRepository(app.database), groupRepo, ".")).createGroup(id1, "IT 426", "")
     slot = TimeSlot(datetime(2026, 11, 16, 15, 0), datetime(2026, 11, 16, 16, 0), "weekly")
     meetingRepo = ScheduledMeetingRepository(app.database)
     scheduledId = meetingRepo.save(ScheduledMeeting(None, group.groupId, "IT 426 weekly", [slot]))
